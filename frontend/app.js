@@ -36,7 +36,7 @@ document.getElementById('themeBtn').onclick=()=>{document.body.classList.toggle(
 
 function renderChart(){const data=[15,10,8,7,9,12,20,28,35,42,39,45,52,55,49,44,57,70,95,82,68,60,48,35];document.getElementById('barChart').innerHTML=data.map((v,i)=>`<span class="bar" style="height:${v}%" data-value="${(v*.028).toFixed(1)} kWh"></span>`).join('')}
 function renderConsumers(){const top=[...appliances].sort((a,b)=>b.watts*b.hours-a.watts*a.hours).slice(0,4);document.getElementById('topConsumers').innerHTML=top.map(a=>`<div class="consumer"><span class="avatar">${a.icon}</span><div><b>${a.name}</b><p>${a.room}</p></div><b>${(a.watts*a.hours/1000).toFixed(1)} kWh</b></div>`).join('')}
-function renderAppliances(){const q=document.getElementById('applianceSearch').value.toLowerCase();const room=document.getElementById('roomFilter').value;const list=appliances.filter(a=>a.name.toLowerCase().includes(q)&&(room==='all'||a.room===room));document.getElementById('applianceGrid').innerHTML=list.map(a=>`<article class="appliance-card"><div class="appliance-top"><span class="app-icon">${a.icon}</span><label class="switch"><input type="checkbox" ${a.on?'checked':''} data-toggle="${a.id}"><span></span></label></div><h4>${a.name}</h4><p class="muted">${a.room}</p><div class="appliance-meta"><span>Rated power</span><b>${a.watts} W</b></div><div class="power-live">${a.on?a.watts:'0'} W</div><small class="muted">${a.on?'Currently running':'Currently off'}</small><div class="appliance-actions"><button data-schedule-id="${a.id}">Schedule</button><button data-delete-id="${a.id}">Remove</button></div></article>`).join('')||'<p>No appliances found.</p>';
+function renderAppliances(){const q=document.getElementById('applianceSearch').value.toLowerCase();const room=document.getElementById('roomFilter').value;const list=appliances.filter(a=>a.name.toLowerCase().includes(q)&&(room==='all'||a.room===room));document.getElementById('applianceGrid').innerHTML=list.map(a=>`<article class="appliance-card"><div class="appliance-top"><span class="app-icon">${a.icon}</span><label class="switch"><input type="checkbox" ${a.on?'checked':''} data-toggle="${a.id}"><span></span></label></div><h4>${a.name}</h4><p class="muted" style="font-size:0.8rem; margin-top:-5px; margin-bottom:5px;">${a.brand || 'No brand specified'}</p><p class="muted">${a.room}</p><div class="appliance-meta"><span>Rated power</span><b>${a.watts} W</b></div><div class="power-live">${a.on?a.watts:'0'} W</div><small class="muted">${a.on?'Currently running':'Currently off'}</small><div class="appliance-actions"><button data-schedule-id="${a.id}">Schedule</button><button data-edit-id="${a.id}">Edit</button><button data-delete-id="${a.id}">Remove</button></div></article>`).join('')||'<p>No appliances found.</p>';
 document.querySelectorAll('[data-toggle]').forEach(x=>x.onchange=async()=>{const a=appliances.find(y=>y.id==x.dataset.toggle);a.on=x.checked;
   await fetch(`${API_URL}/appliances/${a.id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify({on: a.on}) });
   renderAppliances();updateLive();toast(`${a.name} turned ${a.on?'on':'off'}`);
@@ -46,17 +46,43 @@ document.querySelectorAll('[data-delete-id]').forEach(x=>x.onclick=async()=>{
   appliances=appliances.filter(a=>a.id!=x.dataset.deleteId);
   renderAppliances();renderConsumers();updateLive();toast('Appliance removed');
 });
+const editDialog = document.getElementById('editApplianceDialog');
+document.querySelectorAll('[data-edit-id]').forEach(x=>x.onclick=()=>{
+  const a=appliances.find(y=>y.id==x.dataset.editId);
+  document.getElementById('editAppId').value = a.id;
+  document.getElementById('editName').value = a.name;
+  document.getElementById('editBrand').value = a.brand || '';
+  document.getElementById('editRoom').value = a.room;
+  document.getElementById('editWatts').value = a.watts;
+  editDialog.showModal();
+});
 document.querySelectorAll('[data-schedule-id]').forEach(x=>x.onclick=()=>toast('Schedule saved for off-peak operation'))}
 
 function updateLive(){const watts=appliances.filter(a=>a.on).reduce((s,a)=>s+a.watts,0);document.getElementById('livePowerText').textContent=(watts/1000).toFixed(2)+' kW'}
 document.getElementById('applianceSearch').oninput=renderAppliances;document.getElementById('roomFilter').onchange=renderAppliances;
 const dialog=document.getElementById('applianceDialog');document.getElementById('addApplianceBtn').onclick=()=>dialog.showModal();document.getElementById('saveApplianceBtn').onclick=async e=>{e.preventDefault();const name=document.getElementById('newName').value.trim();if(!name)return;
-  const newApp = {name,room:document.getElementById('newRoom').value,watts:+document.getElementById('newWatts').value,on:false,hours:1,icon:'⚡'};
+  const brand = document.getElementById('newBrand').value.trim();
+  const newApp = {name, brand, room:document.getElementById('newRoom').value,watts:+document.getElementById('newWatts').value,on:false,hours:1,icon:'⚡'};
   const res = await fetch(`${API_URL}/appliances`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify(newApp) });
   const data = await res.json();
   newApp.id = data.id;
   appliances.push(newApp);
   renderAppliances();renderConsumers();dialog.close();document.getElementById('applianceForm').reset();toast('Appliance added');
+};
+
+document.getElementById('saveEditApplianceBtn').onclick=async e=>{
+  e.preventDefault();
+  const id = document.getElementById('editAppId').value;
+  const name = document.getElementById('editName').value.trim();
+  const brand = document.getElementById('editBrand').value.trim();
+  if(!name) return;
+  const room = document.getElementById('editRoom').value;
+  const watts = +document.getElementById('editWatts').value;
+  
+  await fetch(`${API_URL}/appliances/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify({name, brand, room, watts}) });
+  const a = appliances.find(y=>y.id==id);
+  a.name = name; a.brand = brand; a.room = room; a.watts = watts;
+  renderAppliances();renderConsumers();editDialog.close();toast('Appliance updated');
 };
 
 function renderAlerts(){document.getElementById('alertList').innerHTML=alerts.map(a=>`<article class="alert-item ${a.unread?'unread':''}"><span class="alert-icon">${a.icon}</span><div><b>${a.title}</b><p>${a.text}</p><small>${a.time}</small></div><button data-read="${a.id}">${a.unread?'Mark read':'Read'}</button></article>`).join('');

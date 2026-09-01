@@ -43,6 +43,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
       FOREIGN KEY (user_id) REFERENCES users (id)
     )`, (err) => {
       if (err) console.error("Error creating appliances table", err.message);
+      else {
+        db.all("PRAGMA table_info(appliances)", (err, columns) => {
+          if (!err) {
+            const hasBrand = columns.some(c => c.name === 'brand');
+            if (!hasBrand) db.run("ALTER TABLE appliances ADD COLUMN brand TEXT");
+          }
+        });
+      }
     });
 
     // Create alerts table

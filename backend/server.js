@@ -65,10 +65,10 @@ app.get('/api/appliances', authenticateToken, (req, res) => {
 });
 
 app.post('/api/appliances', authenticateToken, (req, res) => {
-  const { name, room, watts, on, hours, icon } = req.body;
+  const { name, brand, room, watts, on, hours, icon } = req.body;
   db.run(
-    `INSERT INTO appliances (user_id, name, room, watts, on_state, hours, icon) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [req.user.id, name, room, watts, on ? 1 : 0, hours, icon],
+    `INSERT INTO appliances (user_id, name, brand, room, watts, on_state, hours, icon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [req.user.id, name, brand, room, watts, on ? 1 : 0, hours, icon],
     function (err) {
       if (err) return res.status(500).json({ error: 'Database error' });
       res.status(201).json({ id: this.lastID });
@@ -77,13 +77,19 @@ app.post('/api/appliances', authenticateToken, (req, res) => {
 });
 
 app.put('/api/appliances/:id', authenticateToken, (req, res) => {
-  const { on, hours } = req.body;
+  const { name, brand, room, watts, on, hours } = req.body;
   const { id } = req.params;
   
-  // Note: Only updating what is needed for now
   db.run(
-    `UPDATE appliances SET on_state = ?, hours = ? WHERE id = ? AND user_id = ?`,
-    [on !== undefined ? (on ? 1 : 0) : undefined, hours, id, req.user.id],
+    `UPDATE appliances SET 
+      name = COALESCE(?, name),
+      brand = COALESCE(?, brand),
+      room = COALESCE(?, room),
+      watts = COALESCE(?, watts),
+      on_state = COALESCE(?, on_state),
+      hours = COALESCE(?, hours)
+     WHERE id = ? AND user_id = ?`,
+    [name, brand, room, watts, on !== undefined ? (on ? 1 : 0) : null, hours, id, req.user.id],
     function (err) {
       if (err) return res.status(500).json({ error: 'Database error' });
       res.json({ success: true });

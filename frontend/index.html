@@ -205,10 +205,23 @@
   <dialog id="applianceDialog">
     <form method="dialog" id="applianceForm">
       <div class="dialog-head"><h3>Add appliance</h3><button value="cancel">×</button></div>
-      <label>Appliance name</label><input id="newName" required placeholder="e.g. Water Pump">
+      <label>Appliance name / Type</label><input id="newName" required placeholder="e.g. Refrigerator">
+      <label>Brand / Model</label><input id="newBrand" placeholder="e.g. LG, Samsung">
       <label>Room</label><select id="newRoom"><option>Living Room</option><option>Bedroom</option><option>Kitchen</option><option>Laundry</option><option>Outdoor</option></select>
       <label>Power rating (watts)</label><input type="number" id="newWatts" required min="1" value="500">
       <div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button value="default" class="primary" id="saveApplianceBtn">Add appliance</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="editApplianceDialog">
+    <form method="dialog" id="editApplianceForm">
+      <div class="dialog-head"><h3>Edit appliance</h3><button value="cancel">×</button></div>
+      <input type="hidden" id="editAppId">
+      <label>Appliance name / Type</label><input id="editName" required placeholder="e.g. Refrigerator">
+      <label>Brand / Model</label><input id="editBrand" placeholder="e.g. LG, Samsung">
+      <label>Room</label><select id="editRoom"><option>Living Room</option><option>Bedroom</option><option>Kitchen</option><option>Laundry</option><option>Outdoor</option></select>
+      <label>Power rating (watts)</label><input type="number" id="editWatts" required min="1" value="500">
+      <div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button value="default" class="primary" id="saveEditApplianceBtn">Save Changes</button></div>
     </form>
   </dialog>
 
