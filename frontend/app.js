@@ -54,6 +54,7 @@ document.querySelectorAll('[data-edit-id]').forEach(x=>x.onclick=()=>{
   document.getElementById('editBrand').value = a.brand || '';
   document.getElementById('editRoom').value = a.room;
   document.getElementById('editWatts').value = a.watts;
+  document.getElementById('editHours').value = a.hours || 2;
   editDialog.showModal();
 });
 document.querySelectorAll('[data-schedule-id]').forEach(x=>x.onclick=()=>toast('Schedule saved for off-peak operation'))}
@@ -62,7 +63,7 @@ function updateLive(){const watts=appliances.filter(a=>a.on).reduce((s,a)=>s+a.w
 document.getElementById('applianceSearch').oninput=renderAppliances;document.getElementById('roomFilter').onchange=renderAppliances;
 const dialog=document.getElementById('applianceDialog');document.getElementById('addApplianceBtn').onclick=()=>dialog.showModal();document.getElementById('saveApplianceBtn').onclick=async e=>{e.preventDefault();const name=document.getElementById('newName').value.trim();if(!name)return;
   const brand = document.getElementById('newBrand').value.trim();
-  const newApp = {name, brand, room:document.getElementById('newRoom').value,watts:+document.getElementById('newWatts').value,on:false,hours:+document.getElementById('newWatts').dataset.defaultHours||1,icon:'⚡'};
+  const newApp = {name, brand, room:document.getElementById('addRoom').value,watts:+document.getElementById('addWatts').value,on:false,hours:+document.getElementById('addHours').value||2,icon:'⚡'};
   const res = await fetch(`${API_URL}/appliances`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify(newApp) });
   const data = await res.json();
   newApp.id = data.id;
@@ -78,10 +79,11 @@ document.getElementById('saveEditApplianceBtn').onclick=async e=>{
   if(!name) return;
   const room = document.getElementById('editRoom').value;
   const watts = +document.getElementById('editWatts').value;
+  const hours = +document.getElementById('editHours').value || 2;
   
-  await fetch(`${API_URL}/appliances/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify({name, brand, room, watts}) });
+  await fetch(`${API_URL}/appliances/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify({name, brand, room, watts, hours}) });
   const a = appliances.find(y=>y.id==id);
-  a.name = name; a.brand = brand; a.room = room; a.watts = watts;
+  a.name = name; a.brand = brand; a.room = room; a.watts = watts; a.hours = hours;
   renderAppliances();renderConsumers();updateEnergyScore();populateSimulator();editDialog.close();toast('Appliance updated');
 };
 
