@@ -213,12 +213,12 @@
         <article class="card">
           <h3>Prediction Algorithm</h3>
           <p class="muted">We use a moving average based on your appliance schedule to project your future usage for the remainder of the month.</p>
-          <div style="margin-top: 20px; display: flex; gap: 20px; text-align: center;">
-            <div style="flex: 1; padding: 15px; background: var(--bg); border-radius: 8px;">
+          <div class="flex-grid" style="margin-top: 20px;">
+            <div style="padding: 15px; background: var(--bg); border-radius: 8px;">
               <small style="color: var(--muted);">Current Usage</small>
               <h2 id="predCurrent" style="margin-top: 5px;">0 kWh</h2>
             </div>
-            <div style="flex: 1; padding: 15px; background: rgba(0, 128, 0, 0.1); border-radius: 8px; border: 1px solid var(--green);">
+            <div style="padding: 15px; background: rgba(0, 128, 0, 0.1); border-radius: 8px; border: 1px solid var(--green);">
               <small style="color: var(--green);">Predicted Month-End</small>
               <h2 id="predTotal" style="margin-top: 5px; color: var(--green);">0 kWh</h2>
             </div>
