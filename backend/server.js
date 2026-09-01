@@ -14,6 +14,46 @@ app.use(express.json());
 // Auth routes
 app.use('/api/auth', authRouter);
 
+// Profile routes
+app.get('/api/users/profile', authenticateToken, (req, res) => {
+  db.get(`SELECT id, name, email, phone, avatar FROM users WHERE id = ?`, [req.user.id], (err, user) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  });
+});
+
+const bcrypt = require('bcrypt');
+app.put('/api/users/profile', authenticateToken, async (req, res) => {
+  const { name, email, phone, avatar, password } = req.body;
+  try {
+    let query = `UPDATE users SET name = ?, email = ?, phone = ?, avatar = ?`;
+    let params = [name, email, phone, avatar];
+    
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+      query += `, password_hash = ?`;
+      params.push(passwordHash);
+    }
+    
+    query += ` WHERE id = ?`;
+    params.push(req.user.id);
+    
+    db.run(query, params, function (err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(400).json({ error: 'Email already in use' });
+        }
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ success: true, user: { id: req.user.id, name, email, phone, avatar } });
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Protected routes
 app.get('/api/appliances', authenticateToken, (req, res) => {
   db.all(`SELECT * FROM appliances WHERE user_id = ?`, [req.user.id], (err, rows) => {

@@ -17,6 +17,17 @@ const db = new sqlite3.Database(dbPath, (err) => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
       if (err) console.error("Error creating users table", err.message);
+      else {
+        // Migration: add phone and avatar if they don't exist
+        db.all("PRAGMA table_info(users)", (err, columns) => {
+          if (!err) {
+            const hasPhone = columns.some(c => c.name === 'phone');
+            const hasAvatar = columns.some(c => c.name === 'avatar');
+            if (!hasPhone) db.run("ALTER TABLE users ADD COLUMN phone TEXT");
+            if (!hasAvatar) db.run("ALTER TABLE users ADD COLUMN avatar TEXT");
+          }
+        });
+      }
     });
 
     // Create appliances table
