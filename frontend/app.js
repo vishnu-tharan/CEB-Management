@@ -24,7 +24,7 @@ document.getElementById('logoutBtn').onclick = () => {
 
 const pages=[...document.querySelectorAll('.page')];
 const navBtns=[...document.querySelectorAll('.nav-btn')];
-const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',wastage:'Wastage Detector',simulator:'What-If Simulator',prediction:'Prediction Module',analysis:'Bill Analysis',settings:'Settings',profile:'User Profile'};
+const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',wastage:'Wastage Detector',simulator:'What-If Simulator',prediction:'Prediction Module',analysis:'Bill Analysis',solar:'Solar Mode',ev:'EV Mode',schedule:'Smart Schedule',settings:'Settings',profile:'User Profile'};
 
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
 function go(page){pages.forEach(p=>p.classList.toggle('active',p.id===page));navBtns.forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.getElementById('pageTitle').textContent=titleMap[page];window.scrollTo({top:0,behavior:'smooth'});document.getElementById('sidebar').classList.remove('open')}
@@ -167,6 +167,66 @@ document.getElementById('analyzeBillBtn').onclick = () => {
     insightsEl.innerHTML = `<b>Stable Usage</b><p style="margin-top:5px;">Your consumption is relatively stable compared to last month.</p>`;
   }
 };
+// Solar Logic
+document.getElementById('calcSolarBtn').onclick = () => {
+  const cap = +document.getElementById('solarCapacity').value;
+  // Sri Lanka average: roughly 4.2 peak sun hours * 30 days
+  const monthlyGen = cap * 4.2 * 30;
+  document.getElementById('solarGenerationResult').textContent = Math.round(monthlyGen) + ' kWh';
+  toast('Solar generation calculated');
+};
+
+// EV Logic
+document.getElementById('calcEvBtn').onclick = () => {
+  const cap = +document.getElementById('evBattery').value;
+  const curr = +document.getElementById('evCurrent').value;
+  const target = +document.getElementById('evTarget').value;
+  
+  if (target <= curr) {
+    document.getElementById('evRequiredEnergy').textContent = '0 kWh';
+    document.getElementById('evChargingCost').textContent = 'Rs. 0';
+    document.getElementById('evOffPeakCost').textContent = 'Rs. 0';
+    return;
+  }
+  
+  const percentNeeded = (target - curr) / 100;
+  const energyNeeded = cap * percentNeeded;
+  document.getElementById('evRequiredEnergy').textContent = energyNeeded.toFixed(1) + ' kWh';
+  
+  // Normal rate approx Rs. 50/kWh, Off-peak approx Rs. 30/kWh (concept)
+  const normalCost = energyNeeded * 50;
+  const offPeakCost = energyNeeded * 30;
+  
+  document.getElementById('evChargingCost').textContent = 'Rs. ' + Math.round(normalCost).toLocaleString();
+  document.getElementById('evOffPeakCost').textContent = 'Rs. ' + Math.round(offPeakCost).toLocaleString();
+  toast('EV charging cost calculated');
+};
+
+// Schedule Logic
+function updateScheduleRecommendations() {
+  const container = document.getElementById('scheduleRecommendations');
+  const heavy = appliances.filter(a => a.watts >= 1000);
+  
+  if (heavy.length === 0) {
+    container.innerHTML = '<p class="muted">You have no high-power appliances (1000W+) that need scheduling.</p>';
+    return;
+  }
+  
+  container.innerHTML = heavy.map(a => `
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg); border-left: 3px solid var(--orange); border-radius: 4px;">
+      <div>
+        <b>${a.name}</b> (${a.watts}W)
+      </div>
+      <button class="small ghost" data-action="make-plan">Move to Off-Peak</button>
+    </div>
+  `).join('');
+  
+  // Rebind buttons
+  document.querySelectorAll('[data-action="make-plan"]').forEach(b => {
+    b.onclick = () => toast('Appliance scheduled for Off-Peak');
+  });
+}
+
 function getCEBBill(units) {
   let charge = 0;
   let fixed = 0;
@@ -378,7 +438,7 @@ async function init() {
       document.getElementById('profAvatar').value = prof.avatar || '';
     }
     
-    renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();updateEnergyScore();populateSimulator();updatePrediction();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
+    renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();updateEnergyScore();populateSimulator();updatePrediction();updateScheduleRecommendations();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
   } catch (err) {
     console.error(err);
     toast('Error loading data from server');
