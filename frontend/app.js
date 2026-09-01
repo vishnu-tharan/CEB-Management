@@ -24,7 +24,7 @@ document.getElementById('logoutBtn').onclick = () => {
 
 const pages=[...document.querySelectorAll('.page')];
 const navBtns=[...document.querySelectorAll('.nav-btn')];
-const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',settings:'Settings',profile:'User Profile'};
+const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',wastage:'Wastage Detector',simulator:'What-If Simulator',settings:'Settings',profile:'User Profile'};
 
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
 function go(page){pages.forEach(p=>p.classList.toggle('active',p.id===page));navBtns.forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.getElementById('pageTitle').textContent=titleMap[page];window.scrollTo({top:0,behavior:'smooth'});document.getElementById('sidebar').classList.remove('open')}
@@ -62,12 +62,12 @@ function updateLive(){const watts=appliances.filter(a=>a.on).reduce((s,a)=>s+a.w
 document.getElementById('applianceSearch').oninput=renderAppliances;document.getElementById('roomFilter').onchange=renderAppliances;
 const dialog=document.getElementById('applianceDialog');document.getElementById('addApplianceBtn').onclick=()=>dialog.showModal();document.getElementById('saveApplianceBtn').onclick=async e=>{e.preventDefault();const name=document.getElementById('newName').value.trim();if(!name)return;
   const brand = document.getElementById('newBrand').value.trim();
-  const newApp = {name, brand, room:document.getElementById('newRoom').value,watts:+document.getElementById('newWatts').value,on:false,hours:1,icon:'⚡'};
+  const newApp = {name, brand, room:document.getElementById('newRoom').value,watts:+document.getElementById('newWatts').value,on:false,hours:+document.getElementById('newWatts').dataset.defaultHours||1,icon:'⚡'};
   const res = await fetch(`${API_URL}/appliances`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify(newApp) });
   const data = await res.json();
   newApp.id = data.id;
   appliances.push(newApp);
-  renderAppliances();renderConsumers();dialog.close();document.getElementById('applianceForm').reset();toast('Appliance added');
+  renderAppliances();renderConsumers();updateEnergyScore();populateSimulator();dialog.close();document.getElementById('applianceForm').reset();toast('Appliance added');
 };
 
 document.getElementById('saveEditApplianceBtn').onclick=async e=>{
@@ -82,7 +82,7 @@ document.getElementById('saveEditApplianceBtn').onclick=async e=>{
   await fetch(`${API_URL}/appliances/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify({name, brand, room, watts}) });
   const a = appliances.find(y=>y.id==id);
   a.name = name; a.brand = brand; a.room = room; a.watts = watts;
-  renderAppliances();renderConsumers();editDialog.close();toast('Appliance updated');
+  renderAppliances();renderConsumers();updateEnergyScore();populateSimulator();editDialog.close();toast('Appliance updated');
 };
 
 function renderAlerts(){document.getElementById('alertList').innerHTML=alerts.map(a=>`<article class="alert-item ${a.unread?'unread':''}"><span class="alert-icon">${a.icon}</span><div><b>${a.title}</b><p>${a.text}</p><small>${a.time}</small></div><button data-read="${a.id}">${a.unread?'Mark read':'Read'}</button></article>`).join('');
@@ -144,6 +144,145 @@ document.getElementById('calculateBillBtn').onclick = () => {
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>toast(b.dataset.action==='apply-rec'?'Recommendation applied':b.dataset.action==='make-plan'?'Off-peak plan created':'Schedule saved'));
 document.getElementById('newGoalBtn').onclick=()=>document.getElementById('goalDialog').showModal();document.getElementById('saveGoalBtn').onclick=e=>{e.preventDefault();document.getElementById('goalDialog').close();toast('New saving goal created')};document.getElementById('saveSettingsBtn').onclick=()=>toast('Settings saved');document.getElementById('resetBtn').onclick=()=>{localStorage.clear();location.reload()};
 
+function updateEnergyScore() {
+  const totalKwh = appliances.reduce((sum, a) => sum + ((a.watts * a.hours * 30) / 1000), 0);
+  let score = 100;
+  if (totalKwh > 200) score -= 15;
+  if (totalKwh > 300) score -= 20;
+  
+  appliances.forEach(a => {
+    const dailyKwh = (a.watts * a.hours) / 1000;
+    if (dailyKwh > 5) score -= 5;
+  });
+  
+  score = Math.max(10, Math.min(100, Math.round(score)));
+  document.getElementById('ecoScoreSide').textContent = score;
+  if (document.getElementById('ecoScoreRing')) document.getElementById('ecoScoreRing').textContent = score;
+}
+
+// Wastage Detector Logic
+document.getElementById('scanWastageBtn').onclick = () => {
+  const resultsContainer = document.getElementById('wastageResults');
+  resultsContainer.innerHTML = '';
+  
+  let opportunities = 0;
+  
+  appliances.forEach(a => {
+    const nameLow = a.name.toLowerCase();
+    const isAc = nameLow.includes('ac') || nameLow.includes('air con');
+    const isHeater = nameLow.includes('heat');
+    
+    let isWastage = false;
+    let reason = '';
+    let potentialSaving = 0;
+    
+    if (isAc && a.hours > 6) {
+      isWastage = true;
+      reason = 'AC is running for an unusually long time. Consider using a fan for a few hours instead.';
+      potentialSaving = ((a.hours - 6) * a.watts * 30) / 1000;
+    } else if (isHeater && a.hours > 1.5) {
+      isWastage = true;
+      reason = 'Water heater running for >1.5 hrs daily. Turn it off immediately after use.';
+      potentialSaving = ((a.hours - 1.5) * a.watts * 30) / 1000;
+    } else if (a.hours > 12 && a.watts > 200) {
+      isWastage = true;
+      reason = 'High power appliance running for excessive hours. Could this be a standby issue?';
+      potentialSaving = ((a.hours - 8) * a.watts * 30) / 1000;
+    }
+    
+    if (isWastage) {
+      opportunities++;
+      resultsContainer.innerHTML += `
+        <article class="card" style="border-left: 4px solid var(--danger);">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+              <b style="color: var(--danger);">HIGH WASTAGE DETECTED</b>
+              <h4 style="margin: 5px 0;">${a.name}</h4>
+              <p class="muted">${reason}</p>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 0.8rem; color: var(--text);">Potential Reduction:</span>
+              <br><b>${potentialSaving.toFixed(1)} kWh / month</b>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+  });
+  
+  if (opportunities === 0) {
+    resultsContainer.innerHTML = `<article class="card" style="border-left: 4px solid var(--green);"><b>Looking good!</b><p>No obvious high-wastage patterns were detected among your appliances.</p></article>`;
+  }
+  toast(`Found ${opportunities} wastage opportunities`);
+};
+
+// Simulator Logic
+function populateSimulator() {
+  const select = document.getElementById('simApplianceSelect');
+  select.innerHTML = appliances.map(a => `<option value="${a.id}">${a.name} (${a.watts}W)</option>`).join('');
+  if (appliances.length > 0) {
+    updateSimulatorSlider();
+  }
+}
+
+function updateSimulatorSlider() {
+  const select = document.getElementById('simApplianceSelect');
+  if(!select.value) return;
+  const a = appliances.find(x => x.id == select.value);
+  const slider = document.getElementById('simHoursSlider');
+  slider.value = a.hours || 1;
+  document.getElementById('simHoursValue').textContent = `${slider.value} hours`;
+  runSimulation();
+}
+
+document.getElementById('simApplianceSelect').onchange = updateSimulatorSlider;
+document.getElementById('simHoursSlider').oninput = (e) => {
+  document.getElementById('simHoursValue').textContent = `${e.target.value} hours`;
+  runSimulation();
+};
+
+function runSimulation() {
+  const select = document.getElementById('simApplianceSelect');
+  if(!select.value) return;
+  
+  const simHours = +document.getElementById('simHoursSlider').value;
+  const selectedAppId = select.value;
+  
+  let currentTotalKwh = 0;
+  let simulatedTotalKwh = 0;
+  
+  appliances.forEach(a => {
+    const currentKwh = (a.watts * a.hours * 30) / 1000;
+    currentTotalKwh += currentKwh;
+    
+    if (a.id == selectedAppId) {
+      simulatedTotalKwh += (a.watts * simHours * 30) / 1000;
+    } else {
+      simulatedTotalKwh += currentKwh;
+    }
+  });
+  
+  const currentBill = getCEBBill(currentTotalKwh);
+  const simBill = getCEBBill(simulatedTotalKwh);
+  
+  document.getElementById('simCurrentBill').textContent = 'Rs. ' + Math.round(currentBill).toLocaleString();
+  document.getElementById('simulatedBillResult').textContent = 'Rs. ' + Math.round(simBill).toLocaleString();
+  
+  const diff = currentBill - simBill;
+  const savingsEl = document.getElementById('simSavings');
+  
+  if (diff > 0) {
+    savingsEl.textContent = `Saving: Rs. ${Math.round(diff).toLocaleString()} / month`;
+    savingsEl.style.color = 'var(--green)';
+  } else if (diff < 0) {
+    savingsEl.textContent = `Cost Increase: Rs. ${Math.round(Math.abs(diff)).toLocaleString()} / month`;
+    savingsEl.style.color = 'var(--danger)';
+  } else {
+    savingsEl.textContent = `No difference`;
+    savingsEl.style.color = 'var(--text)';
+  }
+}
+
 async function init() {
   if (!token) return;
   
@@ -172,7 +311,7 @@ async function init() {
       document.getElementById('profAvatar').value = prof.avatar || '';
     }
     
-    renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
+    renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();updateEnergyScore();populateSimulator();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
   } catch (err) {
     console.error(err);
     toast('Error loading data from server');

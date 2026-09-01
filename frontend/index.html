@@ -31,6 +31,8 @@
       <button class="nav-btn" data-page="goals">◎ <span>Saving Goals</span></button>
       <button class="nav-btn" data-page="tips">✦ <span>Energy Tips</span></button>
       <button class="nav-btn" data-page="bill">▤ <span>Bill Estimator</span></button>
+      <button class="nav-btn" data-page="wastage">☠ <span>Wastage Detector</span></button>
+      <button class="nav-btn" data-page="simulator">◲ <span>What-If Simulator</span></button>
       <button class="nav-btn" data-page="settings">⚙ <span>Settings</span></button>
     </nav>
     <div class="sidebar-foot">
@@ -162,6 +164,39 @@
             <span>After a 15% reduction</span>
             <b id="reducedBill">Rs. 0</b>
             <small id="billSaving">Potential saving: Rs. 0</small>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="wastage">
+      <div class="page-actions"><div><h3>Wastage Detector</h3><p>Identify appliances that are consuming excessive energy or running for too long.</p></div><button class="primary" id="scanWastageBtn">Scan for Wastage</button></div>
+      <div id="wastageResults" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <article class="card"><p class="muted">Click "Scan for Wastage" to analyze your appliance usage patterns.</p></article>
+      </div>
+    </section>
+
+    <section class="page" id="simulator">
+      <div class="page-actions"><div><h3>What-If Simulator</h3><p>Adjust appliance usage to simulate the impact on your monthly bill.</p></div></div>
+      <div class="grid-2">
+        <article class="card">
+          <h3>Simulation Controls</h3>
+          <p class="muted" style="margin-bottom: 1rem;">Select an appliance and simulate reducing its daily usage hours.</p>
+          <label>Select Appliance</label>
+          <select id="simApplianceSelect"></select>
+          <label style="margin-top: 1rem;">Simulate Daily Usage (Hours)</label>
+          <input type="range" id="simHoursSlider" min="0" max="24" step="0.5" value="0">
+          <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold;">
+            <span id="simHoursValue">0 hours</span>
+          </div>
+        </article>
+        <article class="card bill-result">
+          <span>Simulated Monthly Bill</span>
+          <strong id="simulatedBillResult">Rs. 0</strong>
+          <div class="saving-box" style="margin-top: 1rem; background: var(--bg); border: 1px solid var(--line);">
+            <span>Current Estimated Bill</span>
+            <b id="simCurrentBill" style="font-size: 1.1rem;">Rs. 0</b>
+            <small id="simSavings" style="color: var(--green);">Difference: Rs. 0</small>
           </div>
         </article>
       </div>
