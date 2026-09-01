@@ -33,6 +33,8 @@
       <button class="nav-btn" data-page="bill">▤ <span>Bill Estimator</span></button>
       <button class="nav-btn" data-page="wastage">☠ <span>Wastage Detector</span></button>
       <button class="nav-btn" data-page="simulator">◲ <span>What-If Simulator</span></button>
+      <button class="nav-btn" data-page="prediction">⚲ <span>Prediction Module</span></button>
+      <button class="nav-btn" data-page="analysis">▤ <span>Bill Analysis</span></button>
       <button class="nav-btn" data-page="settings">⚙ <span>Settings</span></button>
     </nav>
     <div class="sidebar-foot">
@@ -197,6 +199,75 @@
             <span>Current Estimated Bill</span>
             <b id="simCurrentBill" style="font-size: 1.1rem;">Rs. 0</b>
             <small id="simSavings" style="color: var(--green);">Difference: Rs. 0</small>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="prediction">
+      <div class="page-actions"><div><h3>Consumption Prediction</h3><p>Predict your end-of-month electricity usage based on current habits.</p></div></div>
+      <div class="grid-2">
+        <article class="card">
+          <h3>Prediction Algorithm</h3>
+          <p class="muted">We use a moving average based on your appliance schedule to project your future usage for the remainder of the month.</p>
+          <div style="margin-top: 20px; display: flex; gap: 20px; text-align: center;">
+            <div style="flex: 1; padding: 15px; background: var(--bg); border-radius: 8px;">
+              <small style="color: var(--muted);">Current Usage</small>
+              <h2 id="predCurrent" style="margin-top: 5px;">0 kWh</h2>
+            </div>
+            <div style="flex: 1; padding: 15px; background: rgba(0, 128, 0, 0.1); border-radius: 8px; border: 1px solid var(--green);">
+              <small style="color: var(--green);">Predicted Month-End</small>
+              <h2 id="predTotal" style="margin-top: 5px; color: var(--green);">0 kWh</h2>
+            </div>
+          </div>
+          <div id="predAlert" style="margin-top: 20px; padding: 15px; background: rgba(255, 0, 0, 0.1); border-radius: 8px; border-left: 4px solid var(--danger); display: none;">
+            <b style="color: var(--danger);">Target Exceeded Warning</b>
+            <p style="margin-top: 5px; font-size: 0.9rem;" id="predAlertText"></p>
+          </div>
+        </article>
+        <article class="card bill-result">
+          <span>Predicted Monthly Bill</span>
+          <strong id="predBill">Rs. 0</strong>
+          <p>Based on your current daily average</p>
+          <div class="saving-box" style="margin-top: 1rem;">
+            <span>Monthly Target</span>
+            <b id="predTargetKwh">210 kWh</b>
+            <small id="predStatus" style="color: var(--green);">On track</small>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="analysis">
+      <div class="page-actions"><div><h3>Bill Analysis</h3><p>Compare your current predicted bill against last month's bill.</p></div></div>
+      <div class="grid-2">
+        <article class="card">
+          <h3>Input Previous Bill</h3>
+          <p class="muted">Enter the details from your previous CEB bill for comparison.</p>
+          <label>Previous Bill Amount (Rs.)</label>
+          <input type="number" id="prevBillAmount" value="5000">
+          <label>Previous Consumption (kWh)</label>
+          <input type="number" id="prevBillKwh" value="120">
+          <button class="primary full" id="analyzeBillBtn" style="margin-top: 15px;">Analyze Difference</button>
+        </article>
+        <article class="card">
+          <h3>Comparison Results</h3>
+          <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--line);">
+              <span class="muted">Cost Difference</span>
+              <b id="analysisCostDiff">Rs. 0</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--line);">
+              <span class="muted">Usage Difference</span>
+              <b id="analysisUsageDiff">0 kWh</b>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--line);">
+              <span class="muted">Percentage Change</span>
+              <b id="analysisPercentDiff">0%</b>
+            </div>
+          </div>
+          <div id="analysisInsights" style="margin-top: 15px; font-size: 0.9rem; color: var(--text);">
+            <p>Click "Analyze Difference" to see insights.</p>
           </div>
         </article>
       </div>

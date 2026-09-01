@@ -24,7 +24,7 @@ document.getElementById('logoutBtn').onclick = () => {
 
 const pages=[...document.querySelectorAll('.page')];
 const navBtns=[...document.querySelectorAll('.nav-btn')];
-const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',wastage:'Wastage Detector',simulator:'What-If Simulator',settings:'Settings',profile:'User Profile'};
+const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',wastage:'Wastage Detector',simulator:'What-If Simulator',prediction:'Prediction Module',analysis:'Bill Analysis',settings:'Settings',profile:'User Profile'};
 
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
 function go(page){pages.forEach(p=>p.classList.toggle('active',p.id===page));navBtns.forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.getElementById('pageTitle').textContent=titleMap[page];window.scrollTo({top:0,behavior:'smooth'});document.getElementById('sidebar').classList.remove('open')}
@@ -100,6 +100,73 @@ document.getElementById('markAllBtn').onclick=async()=>{
 const tips=[['❄','Air conditioning','Set the AC to 24–26°C and clean filters regularly. Each degree lower can increase electricity use.','High impact'],['☀','Use natural daylight','Open curtains during daytime and switch off unnecessary lights.','Easy win'],['⏻','Stop standby power','Unplug chargers and use switched power strips for TVs, routers and entertainment devices.','Always useful'],['▣','Efficient refrigeration','Keep the refrigerator away from heat, avoid frequent door opening and check door seals.','Medium impact'],['◉','Smarter laundry','Wash full loads, use cold water when suitable and run during off-peak hours.','High impact'],['♨','Reduce water heating','Use shorter showers and switch off electric heaters immediately after use.','High impact'],['✣','Use fans first','Use ceiling fans before air conditioning when weather permits.','Easy win'],['🔌','Choose efficient appliances','Compare energy labels and total running cost before purchasing a device.','Long-term saving'],['📊','Track daily usage','Review your daily pattern and investigate sudden increases early.','Best habit']];document.getElementById('tipsGrid').innerHTML=tips.map(t=>`<article class="tip-card"><span class="tip-icon">${t[0]}</span><h4>${t[1]}</h4><p>${t[2]}</p><b>${t[3]}</b></article>`).join('');
 function renderCategories(){const cats=[['Cooling',38],['Refrigeration',23],['Entertainment',14],['Lighting & fans',13],['Laundry & other',12]];document.getElementById('categoryBars').innerHTML=cats.map(c=>`<div class="category-row"><div><span>${c[0]}</span><b>${c[1]}%</b></div><div class="progress"><span style="width:${c[1]}%"></span></div></div>`).join('')}
 function drawUsage(){const c=document.getElementById('usageCanvas'),x=c.getContext('2d'),d=[8.8,9.4,7.9,8.2,7.1,9.8,8.6];x.clearRect(0,0,c.width,c.height);const styles=getComputedStyle(document.body),line=styles.getPropertyValue('--line'),green=styles.getPropertyValue('--green2'),muted=styles.getPropertyValue('--muted');x.strokeStyle=line;x.fillStyle=muted;x.font='12px sans-serif';for(let i=0;i<5;i++){let y=40+i*60;x.beginPath();x.moveTo(50,y);x.lineTo(870,y);x.stroke();x.fillText((12-i*2)+'',18,y+4)};x.strokeStyle=green;x.lineWidth=4;x.beginPath();d.forEach((v,i)=>{const px=70+i*130,py=280-(v-6)*45;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();d.forEach((v,i)=>{const px=70+i*130,py=280-(v-6)*45;x.beginPath();x.arc(px,py,6,0,Math.PI*2);x.fillStyle=green;x.fill();x.fillStyle=muted;x.fillText(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],px-12,315)})}
+
+// Prediction Logic
+function updatePrediction() {
+  const currentDayOfMonth = new Date().getDate();
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  
+  // Calculate average daily consumption based on appliances
+  const dailyKwh = appliances.reduce((sum, a) => sum + ((a.watts * a.hours) / 1000), 0);
+  
+  // Predict current month-to-date and total
+  const currentKwh = dailyKwh * currentDayOfMonth;
+  const predictedTotalKwh = dailyKwh * daysInMonth;
+  
+  document.getElementById('predCurrent').textContent = currentKwh.toFixed(1) + ' kWh';
+  document.getElementById('predTotal').textContent = predictedTotalKwh.toFixed(1) + ' kWh';
+  
+  const predBill = getCEBBill(predictedTotalKwh);
+  document.getElementById('predBill').textContent = 'Rs. ' + Math.round(predBill).toLocaleString();
+  
+  const targetKwh = 210; // from settings
+  document.getElementById('predTargetKwh').textContent = targetKwh + ' kWh';
+  
+  const alertEl = document.getElementById('predAlert');
+  const alertText = document.getElementById('predAlertText');
+  const statusEl = document.getElementById('predStatus');
+  
+  if (predictedTotalKwh > targetKwh) {
+    alertEl.style.display = 'block';
+    alertText.textContent = `At your current rate, you will exceed your goal of ${targetKwh} kWh by ${(predictedTotalKwh - targetKwh).toFixed(1)} kWh. Try using the Simulator to find ways to cut back.`;
+    statusEl.textContent = 'Will exceed target';
+    statusEl.style.color = 'var(--danger)';
+  } else {
+    alertEl.style.display = 'none';
+    statusEl.textContent = 'On track';
+    statusEl.style.color = 'var(--green)';
+  }
+}
+
+// Bill Analysis Logic
+document.getElementById('analyzeBillBtn').onclick = () => {
+  const prevAmount = +document.getElementById('prevBillAmount').value;
+  const prevKwh = +document.getElementById('prevBillKwh').value;
+  
+  const dailyKwh = appliances.reduce((sum, a) => sum + ((a.watts * a.hours) / 1000), 0);
+  const currentKwh = dailyKwh * 30;
+  const currentAmount = getCEBBill(currentKwh);
+  
+  const costDiff = currentAmount - prevAmount;
+  const kwhDiff = currentKwh - prevKwh;
+  const percentDiff = (costDiff / prevAmount) * 100;
+  
+  document.getElementById('analysisCostDiff').textContent = 'Rs. ' + Math.round(Math.abs(costDiff)).toLocaleString() + (costDiff > 0 ? ' (Increase)' : ' (Decrease)');
+  document.getElementById('analysisUsageDiff').textContent = Math.round(Math.abs(kwhDiff)) + ' kWh ' + (kwhDiff > 0 ? 'more' : 'less');
+  
+  const percentEl = document.getElementById('analysisPercentDiff');
+  percentEl.textContent = Math.round(Math.abs(percentDiff)) + '% ' + (percentDiff > 0 ? 'increase' : 'decrease');
+  percentEl.style.color = percentDiff > 0 ? 'var(--danger)' : 'var(--green)';
+  
+  const insightsEl = document.getElementById('analysisInsights');
+  if (percentDiff > 10) {
+    insightsEl.innerHTML = `<b style="color: var(--danger);">High Increase Alert!</b><p style="margin-top:5px;">Your estimated bill is significantly higher than last month. Check the Wastage Detector for appliances running too long, especially high-wattage ones like AC or Water Heaters.</p>`;
+  } else if (percentDiff < -10) {
+    insightsEl.innerHTML = `<b style="color: var(--green);">Great Savings!</b><p style="margin-top:5px;">You have significantly reduced your consumption compared to last month. Keep up the good work!</p>`;
+  } else {
+    insightsEl.innerHTML = `<b>Stable Usage</b><p style="margin-top:5px;">Your consumption is relatively stable compared to last month.</p>`;
+  }
+};
 function getCEBBill(units) {
   let charge = 0;
   let fixed = 0;
@@ -311,7 +378,7 @@ async function init() {
       document.getElementById('profAvatar').value = prof.avatar || '';
     }
     
-    renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();updateEnergyScore();populateSimulator();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
+    renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();updateEnergyScore();populateSimulator();updatePrediction();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
   } catch (err) {
     console.error(err);
     toast('Error loading data from server');
