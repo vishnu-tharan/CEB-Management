@@ -8,6 +8,13 @@ const user = JSON.parse(localStorage.getItem('ceb_user') || '{}');
 if (document.getElementById('profileName') && user.name) {
   document.getElementById('profileName').textContent = user.name;
 }
+if (user.avatar) {
+  const avatarEl = document.querySelector('.profile > span');
+  if (avatarEl) {
+    avatarEl.innerHTML = `<img src="${user.avatar}" alt="Avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+    avatarEl.style.padding = '0';
+  }
+}
 
 document.getElementById('logoutBtn').onclick = () => {
   localStorage.removeItem('ceb_token');
@@ -17,12 +24,13 @@ document.getElementById('logoutBtn').onclick = () => {
 
 const pages=[...document.querySelectorAll('.page')];
 const navBtns=[...document.querySelectorAll('.nav-btn')];
-const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',settings:'Settings'};
+const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',settings:'Settings',profile:'User Profile'};
 
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
 function go(page){pages.forEach(p=>p.classList.toggle('active',p.id===page));navBtns.forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.getElementById('pageTitle').textContent=titleMap[page];window.scrollTo({top:0,behavior:'smooth'});document.getElementById('sidebar').classList.remove('open')}
 navBtns.forEach(b=>b.onclick=()=>go(b.dataset.page));document.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>go(b.dataset.jump));
 document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
+document.getElementById('profileBtn').onclick=()=>go('profile');
 document.getElementById('todayText').textContent=new Date().toLocaleDateString('en-LK',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 document.getElementById('themeBtn').onclick=()=>{document.body.classList.toggle('dark');localStorage.setItem('ceb_dark',document.body.classList.contains('dark'));};if(localStorage.getItem('ceb_dark')==='true')document.body.classList.add('dark');
 
@@ -66,7 +74,47 @@ document.getElementById('markAllBtn').onclick=async()=>{
 const tips=[['❄','Air conditioning','Set the AC to 24–26°C and clean filters regularly. Each degree lower can increase electricity use.','High impact'],['☀','Use natural daylight','Open curtains during daytime and switch off unnecessary lights.','Easy win'],['⏻','Stop standby power','Unplug chargers and use switched power strips for TVs, routers and entertainment devices.','Always useful'],['▣','Efficient refrigeration','Keep the refrigerator away from heat, avoid frequent door opening and check door seals.','Medium impact'],['◉','Smarter laundry','Wash full loads, use cold water when suitable and run during off-peak hours.','High impact'],['♨','Reduce water heating','Use shorter showers and switch off electric heaters immediately after use.','High impact'],['✣','Use fans first','Use ceiling fans before air conditioning when weather permits.','Easy win'],['🔌','Choose efficient appliances','Compare energy labels and total running cost before purchasing a device.','Long-term saving'],['📊','Track daily usage','Review your daily pattern and investigate sudden increases early.','Best habit']];document.getElementById('tipsGrid').innerHTML=tips.map(t=>`<article class="tip-card"><span class="tip-icon">${t[0]}</span><h4>${t[1]}</h4><p>${t[2]}</p><b>${t[3]}</b></article>`).join('');
 function renderCategories(){const cats=[['Cooling',38],['Refrigeration',23],['Entertainment',14],['Lighting & fans',13],['Laundry & other',12]];document.getElementById('categoryBars').innerHTML=cats.map(c=>`<div class="category-row"><div><span>${c[0]}</span><b>${c[1]}%</b></div><div class="progress"><span style="width:${c[1]}%"></span></div></div>`).join('')}
 function drawUsage(){const c=document.getElementById('usageCanvas'),x=c.getContext('2d'),d=[8.8,9.4,7.9,8.2,7.1,9.8,8.6];x.clearRect(0,0,c.width,c.height);const styles=getComputedStyle(document.body),line=styles.getPropertyValue('--line'),green=styles.getPropertyValue('--green2'),muted=styles.getPropertyValue('--muted');x.strokeStyle=line;x.fillStyle=muted;x.font='12px sans-serif';for(let i=0;i<5;i++){let y=40+i*60;x.beginPath();x.moveTo(50,y);x.lineTo(870,y);x.stroke();x.fillText((12-i*2)+'',18,y+4)};x.strokeStyle=green;x.lineWidth=4;x.beginPath();d.forEach((v,i)=>{const px=70+i*130,py=280-(v-6)*45;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();d.forEach((v,i)=>{const px=70+i*130,py=280-(v-6)*45;x.beginPath();x.arc(px,py,6,0,Math.PI*2);x.fillStyle=green;x.fill();x.fillStyle=muted;x.fillText(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],px-12,315)})}
-document.getElementById('calculateBillBtn').onclick=()=>{const k=+billKwh.value,r=+billRate.value,f=+fixedCharge.value,total=k*r+f,reduced=k*.85*r+f;billResult.textContent='Rs. '+Math.round(total).toLocaleString();reducedBill.textContent='Rs. '+Math.round(reduced).toLocaleString();billSaving.textContent='Potential saving: Rs. '+Math.round(total-reduced).toLocaleString();toast('Bill estimate updated')};
+function getCEBBill(units) {
+  let charge = 0;
+  let fixed = 0;
+  
+  if (units <= 60) {
+    if (units <= 30) { charge = units * 6.00; fixed = 100; }
+    else { charge = (30 * 6.00) + ((units - 30) * 9.00); fixed = 250; }
+  } else {
+    if (units <= 90) { charge = (60 * 15.00) + ((units - 60) * 18.00); fixed = 400; }
+    else if (units <= 120) { charge = (60 * 15.00) + (30 * 18.00) + ((units - 90) * 30.00); fixed = 1000; }
+    else if (units <= 180) { charge = (60 * 15.00) + (30 * 18.00) + (30 * 30.00) + ((units - 120) * 42.00); fixed = 1500; }
+    else { charge = (60 * 15.00) + (30 * 18.00) + (30 * 30.00) + (60 * 42.00) + ((units - 180) * 65.00); fixed = 2000; }
+  }
+  return charge + fixed;
+}
+
+document.getElementById('calculateBillBtn').onclick = () => {
+  const k = +document.getElementById('billKwh').value;
+  const total = getCEBBill(k);
+  const reducedTotal = getCEBBill(k * 0.85); // 15% reduction
+  
+  document.getElementById('billResult').textContent = 'Rs. ' + Math.round(total).toLocaleString();
+  document.getElementById('reducedBill').textContent = 'Rs. ' + Math.round(reducedTotal).toLocaleString();
+  document.getElementById('billSaving').textContent = 'Potential saving: Rs. ' + Math.round(total - reducedTotal).toLocaleString();
+  
+  // Recommendation logic
+  const recEl = document.getElementById('billRecommendation');
+  const recText = document.getElementById('billRecText');
+  recEl.style.display = 'block';
+  if (k > 180) {
+    recText.textContent = "Your expected consumption is very high (>180 units) placing you in the most expensive tariff block (Rs. 65/unit). Try to reduce usage immediately by limiting AC or replacing old appliances.";
+  } else if (k > 90) {
+    recText.textContent = "You are in a higher tariff block. Keeping your usage below 90 units will significantly reduce your fixed and energy charges!";
+  } else if (k > 60) {
+    recText.textContent = "If you reduce your usage to 60 units or below, you'll fall into a much cheaper subsidized block where rates are as low as Rs. 6/unit!";
+  } else {
+    recText.textContent = "Great job! Your consumption is highly efficient. Keep maintaining this to enjoy the cheapest electricity rates.";
+  }
+  
+  toast('Bill estimate updated');
+};
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>toast(b.dataset.action==='apply-rec'?'Recommendation applied':b.dataset.action==='make-plan'?'Off-peak plan created':'Schedule saved'));
 document.getElementById('newGoalBtn').onclick=()=>document.getElementById('goalDialog').showModal();document.getElementById('saveGoalBtn').onclick=e=>{e.preventDefault();document.getElementById('goalDialog').close();toast('New saving goal created')};document.getElementById('saveSettingsBtn').onclick=()=>toast('Settings saved');document.getElementById('resetBtn').onclick=()=>{localStorage.clear();location.reload()};
 
@@ -88,6 +136,16 @@ async function init() {
     appliances = await appRes.json();
     alerts = await alertRes.json();
     
+    // Load profile data
+    const profileRes = await fetch(`${API_URL}/users/profile`, { headers: {'Authorization': `Bearer ${token}`} });
+    if (profileRes.ok) {
+      const prof = await profileRes.json();
+      document.getElementById('profName').value = prof.name || '';
+      document.getElementById('profEmail').value = prof.email || '';
+      document.getElementById('profPhone').value = prof.phone || '';
+      document.getElementById('profAvatar').value = prof.avatar || '';
+    }
+    
     renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
   } catch (err) {
     console.error(err);
@@ -96,3 +154,44 @@ async function init() {
 }
 
 init();
+
+document.getElementById('profileForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const data = {
+    name: document.getElementById('profName').value,
+    email: document.getElementById('profEmail').value,
+    phone: document.getElementById('profPhone').value,
+    avatar: document.getElementById('profAvatar').value,
+    password: document.getElementById('profPassword').value
+  };
+  
+  try {
+    const res = await fetch(`${API_URL}/users/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data)
+    });
+    
+    if (res.ok) {
+      const result = await res.json();
+      localStorage.setItem('ceb_user', JSON.stringify(result.user));
+      toast('Profile updated successfully');
+      document.getElementById('profPassword').value = '';
+      
+      // Update UI
+      document.getElementById('profileName').textContent = result.user.name;
+      if (result.user.avatar) {
+        const avatarEl = document.querySelector('.profile > span');
+        if (avatarEl) {
+          avatarEl.innerHTML = `<img src="${result.user.avatar}" alt="Avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+          avatarEl.style.padding = '0';
+        }
+      }
+    } else {
+      const err = await res.json();
+      toast('Error: ' + (err.error || 'Update failed'));
+    }
+  } catch (err) {
+    toast('Network error updating profile');
+  }
+};
