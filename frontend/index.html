@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b6b50" />
+  <title>CEB Energy Saver - Concept App</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    if (!localStorage.getItem('ceb_token')) {
+      window.location.href = 'login.html';
+    }
+  </script>
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">⚡</div>
+      <div>
+        <h1>Energy Saver</h1>
+        <span>CEB-inspired concept</span>
+      </div>
+    </div>
+    <nav id="nav">
+      <button class="nav-btn active" data-page="dashboard">⌂ <span>Dashboard</span></button>
+      <button class="nav-btn" data-page="appliances">▣ <span>Appliances</span></button>
+      <button class="nav-btn" data-page="usage">◔ <span>Usage Analytics</span></button>
+      <button class="nav-btn" data-page="alerts">⚠ <span>Alerts</span><b id="alertBadge">3</b></button>
+      <button class="nav-btn" data-page="goals">◎ <span>Saving Goals</span></button>
+      <button class="nav-btn" data-page="tips">✦ <span>Energy Tips</span></button>
+      <button class="nav-btn" data-page="bill">▤ <span>Bill Estimator</span></button>
+      <button class="nav-btn" data-page="settings">⚙ <span>Settings</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="eco-score"><span>Eco score</span><strong id="ecoScoreSide">78</strong></div>
+      <small>Demo data is stored in your browser.</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu" id="menuBtn">☰</button>
+      <div>
+        <h2 id="pageTitle">Dashboard</h2>
+        <p id="todayText"></p>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="themeBtn" title="Toggle dark mode">◐</button>
+        <button class="icon-btn" id="logoutBtn" title="Logout" style="color: var(--danger, #ff4d4f); font-size: 1.2rem;">⍈</button>
+        <button class="profile"><span>V</span><div><b id="profileName">Vishnu</b><small>Home Account</small></div></button>
+      </div>
+    </header>
+
+    <section class="page active" id="dashboard">
+      <div class="hero">
+        <div>
+          <span class="eyebrow">LIVE ENERGY OVERVIEW</span>
+          <h3>Use less. Save more. Live smarter.</h3>
+          <p>Your home is currently using <b id="livePowerText">1.42 kW</b>. Two appliances may be wasting electricity.</p>
+          <button class="primary" data-jump="alerts">Review alerts</button>
+        </div>
+        <div class="hero-meter">
+          <div class="ring"><span id="ecoScoreRing">78</span><small>Eco Score</small></div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <article class="stat"><div class="stat-icon green">⚡</div><div><span>Today</span><strong id="todayKwh">8.6 kWh</strong><small class="good">↓ 12% vs yesterday</small></div></article>
+        <article class="stat"><div class="stat-icon blue">▤</div><div><span>Estimated bill</span><strong id="monthBill">Rs. 4,280</strong><small>Current billing cycle</small></div></article>
+        <article class="stat"><div class="stat-icon orange">◔</div><div><span>Peak use</span><strong>7:30 PM</strong><small>2.8 kW demand</small></div></article>
+        <article class="stat"><div class="stat-icon purple">♻</div><div><span>Saved this month</span><strong id="savedKwh">34 kWh</strong><small class="good">≈ Rs. 1,020 saved</small></div></article>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-head"><div><h3>Today's consumption</h3><p>Hourly electricity use</p></div><select id="chartRange"><option>Today</option><option>This week</option></select></div>
+          <div class="bar-chart" id="barChart"></div>
+          <div class="chart-labels"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>Now</span></div>
+        </article>
+        <article class="card">
+          <div class="card-head"><div><h3>Top energy consumers</h3><p>Appliances ranked by usage</p></div><button class="text-btn" data-jump="appliances">View all</button></div>
+          <div id="topConsumers"></div>
+        </article>
+      </div>
+
+      <div class="grid-2 lower">
+        <article class="card">
+          <div class="card-head"><div><h3>Smart recommendations</h3><p>Actions with the highest saving potential</p></div></div>
+          <div class="recommendation"><span class="rec-icon">❄</span><div><b>Raise AC temperature to 25°C</b><p>Potential saving: 1.2 kWh/day</p></div><button class="small primary" data-action="apply-rec">Apply</button></div>
+          <div class="recommendation"><span class="rec-icon">☀</span><div><b>Run washing machine after 9 PM</b><p>Shift usage away from peak time</p></div><button class="small ghost" data-action="schedule">Schedule</button></div>
+          <div class="recommendation"><span class="rec-icon">⏻</span><div><b>Turn off standby devices</b><p>3 devices have been idle for over 2 hours</p></div><button class="small ghost" data-jump="appliances">Review</button></div>
+        </article>
+        <article class="card goal-card">
+          <div class="card-head"><div><h3>Monthly saving goal</h3><p>Target: reduce usage by 15%</p></div><b id="goalPercent">68%</b></div>
+          <div class="progress"><span id="goalProgress" style="width:68%"></span></div>
+          <div class="goal-row"><span>Current usage</span><b id="currentMonthKwh">226 kWh</b></div>
+          <div class="goal-row"><span>Target usage</span><b>210 kWh</b></div>
+          <div class="goal-row"><span>Days remaining</span><b>9 days</b></div>
+          <button class="primary full" data-jump="goals">View goal details</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="appliances">
+      <div class="page-actions"><div><h3>Connected appliances</h3><p>Track, switch and schedule appliance usage.</p></div><button class="primary" id="addApplianceBtn">+ Add appliance</button></div>
+      <div class="filter-row"><input id="applianceSearch" placeholder="Search appliances..."/><select id="roomFilter"><option value="all">All rooms</option><option>Living Room</option><option>Bedroom</option><option>Kitchen</option><option>Laundry</option></select></div>
+      <div class="appliance-grid" id="applianceGrid"></div>
+    </section>
+
+    <section class="page" id="usage">
+      <div class="stats-grid">
+        <article class="stat"><div><span>This week</span><strong>61.4 kWh</strong><small class="good">↓ 8.4%</small></div></article>
+        <article class="stat"><div><span>This month</span><strong>226 kWh</strong><small>Projected 278 kWh</small></div></article>
+        <article class="stat"><div><span>Daily average</span><strong>8.1 kWh</strong><small>Target 7.5 kWh</small></div></article>
+        <article class="stat"><div><span>Carbon avoided</span><strong>22.8 kg</strong><small>CO₂ equivalent</small></div></article>
+      </div>
+      <article class="card tall"><div class="card-head"><div><h3>7-day usage trend</h3><p>Daily energy consumption in kWh</p></div></div><canvas id="usageCanvas" width="900" height="340"></canvas></article>
+      <div class="grid-2"><article class="card"><h3>Usage by category</h3><div id="categoryBars"></div></article><article class="card"><h3>Peak-hour analysis</h3><p class="muted">Your highest consumption occurs between 6 PM and 10 PM. Moving flexible loads can reduce pressure on the grid.</p><div class="peak-box"><b>38%</b><span>of daily use occurs during peak hours</span></div><button class="primary" data-action="make-plan">Create off-peak plan</button></article></div>
+    </section>
+
+    <section class="page" id="alerts">
+      <div class="page-actions"><div><h3>Energy alerts</h3><p>Possible wastage and unusual consumption events.</p></div><button class="ghost" id="markAllBtn">Mark all as read</button></div>
+      <div id="alertList"></div>
+    </section>
+
+    <section class="page" id="goals">
+      <div class="page-actions"><div><h3>Saving goals</h3><p>Create goals and monitor your progress.</p></div><button class="primary" id="newGoalBtn">+ New goal</button></div>
+      <div class="goal-layout"><article class="card center"><div class="big-ring"><span>68%</span></div><h3>July reduction goal</h3><p>Reduce monthly energy use from 247 kWh to 210 kWh.</p><div class="goal-row"><span>Saved so far</span><b>21 kWh</b></div><div class="goal-row"><span>Still to save</span><b>16 kWh</b></div></article><article class="card"><h3>Goal milestones</h3><div class="timeline"><div class="done"><b>Week 1</b><span>Turn off standby devices</span></div><div class="done"><b>Week 2</b><span>Reduce AC usage by 10%</span></div><div class="active"><b>Week 3</b><span>Shift laundry to off-peak hours</span></div><div><b>Week 4</b><span>Keep daily average below 7.5 kWh</span></div></div></article></div>
+    </section>
+
+    <section class="page" id="tips">
+      <div class="page-actions"><div><h3>Energy-saving library</h3><p>Practical ways to lower electricity wastage.</p></div></div>
+      <div class="tips-grid" id="tipsGrid"></div>
+    </section>
+
+    <section class="page" id="bill">
+      <div class="grid-2"><article class="card"><h3>Monthly bill estimator</h3><p class="muted">Enter your expected monthly consumption and a rate to estimate your cost. This is a planning tool, not an official CEB bill.</p><label>Expected consumption (kWh)</label><input type="number" id="billKwh" value="250" min="0"><label>Average rate (Rs. per kWh)</label><input type="number" id="billRate" value="30" min="0"><label>Fixed charges (Rs.)</label><input type="number" id="fixedCharge" value="400" min="0"><button class="primary full" id="calculateBillBtn">Calculate estimate</button></article><article class="card bill-result"><span>Estimated monthly bill</span><strong id="billResult">Rs. 7,900</strong><p>Energy charge + fixed charges</p><div class="saving-box"><span>After a 15% reduction</span><b id="reducedBill">Rs. 6,775</b><small id="billSaving">Potential saving: Rs. 1,125</small></div></article></div>
+    </section>
+
+    <section class="page" id="settings">
+      <article class="card settings-card"><h3>Preferences</h3><div class="setting"><div><b>High-usage alerts</b><p>Notify when live power is above the selected limit.</p></div><label class="switch"><input type="checkbox" checked><span></span></label></div><div class="setting"><div><b>Daily saving reminders</b><p>Show a reminder each evening.</p></div><label class="switch"><input type="checkbox" checked><span></span></label></div><div class="setting"><div><b>Monthly target</b><p>Set your preferred consumption limit.</p></div><input type="number" value="210" class="compact"> kWh</div><div class="setting"><div><b>Currency</b><p>Used for estimates.</p></div><select class="compact"><option>LKR (Rs.)</option></select></div><button class="primary" id="saveSettingsBtn">Save settings</button></article>
+      <article class="card danger-zone"><h3>Demo data</h3><p>Reset appliances, alerts and preferences to the original sample data.</p><button class="danger" id="resetBtn">Reset application data</button></article>
+    </section>
+  </main>
+
+  <dialog id="applianceDialog">
+    <form method="dialog" id="applianceForm">
+      <div class="dialog-head"><h3>Add appliance</h3><button value="cancel">×</button></div>
+      <label>Appliance name</label><input id="newName" required placeholder="e.g. Water Pump">
+      <label>Room</label><select id="newRoom"><option>Living Room</option><option>Bedroom</option><option>Kitchen</option><option>Laundry</option><option>Outdoor</option></select>
+      <label>Power rating (watts)</label><input type="number" id="newWatts" required min="1" value="500">
+      <div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button value="default" class="primary" id="saveApplianceBtn">Add appliance</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="goalDialog"><form method="dialog" id="goalForm"><div class="dialog-head"><h3>Create saving goal</h3><button value="cancel">×</button></div><label>Goal name</label><input id="goalName" required value="Next month saving goal"><label>Target monthly usage (kWh)</label><input id="goalTarget" type="number" min="1" value="200"><div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button class="primary" id="saveGoalBtn">Create goal</button></div></form></dialog>
+
+  <footer>Concept application for energy-awareness demonstration. Not an official Ceylon Electricity Board product.</footer>
+  <script src="app.js"></script>
+</body>
+</html>
