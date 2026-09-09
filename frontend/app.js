@@ -1,491 +1,66 @@
-const API_URL = 'http://localhost:3000/api';
-let appliances = [];
-let alerts = [];
-
-const token = localStorage.getItem('ceb_token');
-const user = JSON.parse(localStorage.getItem('ceb_user') || '{}');
-
-if (document.getElementById('profileName') && user.name) {
-  document.getElementById('profileName').textContent = user.name;
+'use strict';
+const renderers={dashboard,appliances,readings,usage,alerts,goals,bill,analysis,simulator,prediction,schedule:schedules,solar,ev,tips,profile,security,settings};
+function render(){
+  $('#pageTitle').textContent=titles[page];$('#profileName').textContent=state.user.name.split(' ')[0];$('#initials').textContent=state.user.name.split(/\s+/).slice(0,2).map(n=>n[0]).join('').toUpperCase();
+  $('#nav').innerHTML=nav.map(([group,links])=>`<div class="nav-group">${group}</div>${links.map(([id,title,symbol])=>`<a href="#${id}" class="nav-link ${page===id?'active':''}" ${page===id?'aria-current="page"':''}>${icon(symbol)}<span>${title}</span>${id==='alerts'&&insights().length?`<span class="badge">${insights().length}</span>`:''}</a>`).join('')}`).join('');
+  $('#content').innerHTML=renderers[page]();
+  if(page==='security')loadSecurity();
 }
-if (user.avatar) {
-  const avatarEl = document.querySelector('.profile > span');
-  if (avatarEl) {
-    avatarEl.innerHTML = `<img src="${user.avatar}" alt="Avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-    avatarEl.style.padding = '0';
-  }
-}
-
-document.getElementById('logoutBtn').onclick = () => {
-  localStorage.removeItem('ceb_token');
-  localStorage.removeItem('ceb_user');
-  window.location.href = 'login.html';
-};
-
-const pages=[...document.querySelectorAll('.page')];
-const navBtns=[...document.querySelectorAll('.nav-btn')];
-const titleMap={dashboard:'Dashboard',appliances:'Appliances',usage:'Usage Analytics',alerts:'Alerts',goals:'Saving Goals',tips:'Energy Tips',bill:'Bill Estimator',wastage:'Wastage Detector',simulator:'What-If Simulator',prediction:'Prediction Module',analysis:'Bill Analysis',solar:'Solar Mode',ev:'EV Mode',schedule:'Smart Schedule',settings:'Settings',profile:'User Profile'};
-
-function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
-function go(page){pages.forEach(p=>p.classList.toggle('active',p.id===page));navBtns.forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.getElementById('pageTitle').textContent=titleMap[page];window.scrollTo({top:0,behavior:'smooth'});document.getElementById('sidebar').classList.remove('open')}
-navBtns.forEach(b=>b.onclick=()=>go(b.dataset.page));document.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>go(b.dataset.jump));
-document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
-document.getElementById('profileBtn').onclick=()=>go('profile');
-document.getElementById('todayText').textContent=new Date().toLocaleDateString('en-LK',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-document.getElementById('themeBtn').onclick=()=>{document.body.classList.toggle('dark');localStorage.setItem('ceb_dark',document.body.classList.contains('dark'));};if(localStorage.getItem('ceb_dark')==='true')document.body.classList.add('dark');
-
-function renderChart(){const data=[15,10,8,7,9,12,20,28,35,42,39,45,52,55,49,44,57,70,95,82,68,60,48,35];document.getElementById('barChart').innerHTML=data.map((v,i)=>`<span class="bar" style="height:${v}%" data-value="${(v*.028).toFixed(1)} kWh"></span>`).join('')}
-function renderConsumers(){const top=[...appliances].sort((a,b)=>b.watts*b.hours-a.watts*a.hours).slice(0,4);document.getElementById('topConsumers').innerHTML=top.map(a=>`<div class="consumer"><span class="avatar">${a.icon}</span><div><b>${a.name}</b><p>${a.room}</p></div><b>${(a.watts*a.hours/1000).toFixed(1)} kWh</b></div>`).join('')}
-function renderAppliances(){const q=document.getElementById('applianceSearch').value.toLowerCase();const room=document.getElementById('roomFilter').value;const list=appliances.filter(a=>a.name.toLowerCase().includes(q)&&(room==='all'||a.room===room));document.getElementById('applianceGrid').innerHTML=list.map(a=>`<article class="appliance-card"><div class="appliance-top"><span class="app-icon">${a.icon}</span><label class="switch"><input type="checkbox" ${a.on?'checked':''} data-toggle="${a.id}"><span></span></label></div><h4>${a.name}</h4><p class="muted" style="font-size:0.8rem; margin-top:-5px; margin-bottom:5px;">${a.brand || 'No brand specified'}</p><p class="muted">${a.room}</p><div class="appliance-meta"><span>Rated power</span><b>${a.watts} W</b></div><div class="power-live">${a.on?a.watts:'0'} W</div><small class="muted">${a.on?'Currently running':'Currently off'}</small><div class="appliance-actions"><button data-schedule-id="${a.id}">Schedule</button><button data-edit-id="${a.id}">Edit</button><button data-delete-id="${a.id}">Remove</button></div></article>`).join('')||'<p>No appliances found.</p>';
-document.querySelectorAll('[data-toggle]').forEach(x=>x.onchange=async()=>{const a=appliances.find(y=>y.id==x.dataset.toggle);a.on=x.checked;
-  await fetch(`${API_URL}/appliances/${a.id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify({on: a.on}) });
-  renderAppliances();updateLive();toast(`${a.name} turned ${a.on?'on':'off'}`);
+async function load(){try{state=await api('/household');render();}catch(error){toast('Could not refresh household data. Reload the page to check your latest saved changes.');throw error;}}
+async function loadSecurity(){try{const data=await api('/security');if(page!=='security')return;$('#sessionsContent').innerHTML=data.sessions.map(s=>`<div class="row"><div class="row-main"><strong>${s.current?'This browser':'Another browser'}</strong><p class="wrap">${esc(s.agent)}</p><p>Last active: ${new Date(s.last_seen).toLocaleString('en-LK',{timeZone:'Asia/Colombo'})}</p></div><span class="pill">${s.current?'CURRENT':'ACTIVE'}</span></div>`).join('');$('#eventsContent').innerHTML=data.events.map(e=>`<div class="row"><div><strong>${esc(e.action)}</strong><p>${new Date(e.created_at.replace(' ','T')+'Z').toLocaleString('en-LK',{timeZone:'Asia/Colombo'})}</p></div></div>`).join('');}catch(e){if(page==='security'){ $('#sessionsContent').textContent=e.message;$('#eventsContent').textContent='Refresh to try again.';}}}
+function navigate(){page=Object.hasOwn(renderers,location.hash.slice(1))?location.hash.slice(1):'dashboard';closeMenu();if(state)render();window.scrollTo(0,0);}
+function closeMenu(){$('#sidebar').classList.remove('open');$('#scrim').hidden=true;$('#menuBtn').setAttribute('aria-expanded','false');}
+function modal(title,body){$('#modal').innerHTML=`<div class="dialog-head"><h2 id="dialogTitle">${title}</h2><button type="button" class="icon-button" data-action="close-modal" aria-label="Close dialog">×</button></div>${body}`;if(!$('#modal').open)$('#modal').showModal();}
+function applianceModal(a){modal(a?'Edit appliance':'Add appliance',form('appliance',`<input type="hidden" name="id" value="${a?.id||''}">${field('Appliance name','name',a?.name||'','text','required maxlength="80" placeholder="e.g. Ceiling fan"')}${field('Brand / model (optional)','brand',a?.brand||'','text','maxlength="80"')}${field('Room','room',a?.room||'Living room','text','required maxlength="50"')}<div class="form-grid">${field('Rated power (watts)','watts',a?.watts??75,'number','required min="1" max="50000" step="0.1"')}${field('Effective daily use (hours)','hours',a?.hours??8,'number','required min="0" max="24" step="0.1"')}</div><label class="check"><input type="checkbox" name="on" ${a?.on?'checked':''}> Mark as currently in use (manual record)</label>`,a?'Save appliance':'Add appliance')+(a?`<div class="dialog-actions">${button('Delete appliance','delete-appliances',a.id,'danger')}</div>`:''));}
+function scheduleModal(s,applianceId){modal(s?'Edit usage plan':'Create usage plan',form('schedule',(s?'<input type="hidden" name="appliance_id" value="'+s.appliance_id+'"><p>Appliance: <strong>'+esc(s.name)+'</strong></p>':selectField('Appliance','appliance_id',state.appliances.map(a=>[a.id,a.name]),applianceId||state.appliances[0]?.id))+`<div class="form-grid">${field('Start time (Sri Lanka)','start',s?.start||'10:00','time','required')}${field('End time (Sri Lanka)','end',s?.end||'11:00','time','required')}</div><p class="help">If the end time is earlier, the plan ends the next day.</p><fieldset><legend>Days the plan starts</legend><div class="inline-checks">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>`<label class="check"><input type="checkbox" name="days" value="${i}" ${(s?.days||[0,1,2,3,4,5,6]).includes(i)?'checked':''}>${d}</label>`).join('')}</div></fieldset><label class="check"><input type="checkbox" name="enabled" ${!s||s.enabled?'checked':''}> Plan enabled</label>`,'Save plan'));}
+function showRecovery(code){modal('Keep your recovery code safe',`<p>This code can reset your password. Store it in a password manager or another private place. It will not be shown again.</p><code class="recovery-code">${esc(code)}</code><p class="help">Generating another code invalidates this one.</p>${button('I have saved my code','close-modal','','primary')}`);}
+$('#content').addEventListener('input',e=>{if(e.target.id==='applianceSearch'){const at=e.target.selectionStart;search=e.target.value;render();const el=$('#applianceSearch');el.focus();el.setSelectionRange(at,at);}});
+$('#content').addEventListener('change',e=>{if(e.target.id==='roomFilter'){room=e.target.value;render();}if(e.target.name==='appliance_id'&&e.target.form?.dataset.form==='simulate'){const a=state.appliances.find(a=>a.id===Number(e.target.value));e.target.form.elements.hours.value=a.hours;}});
+let actionBusy=false;
+document.addEventListener('click',async e=>{
+  const target=e.target.closest('[data-action]');if(!target)return;const action=target.dataset.action,id=Number(target.dataset.id);
+  if(action==='close-modal'){$('#modal').close();return;}
+  if(action==='add-appliance'||action==='edit-appliance'){applianceModal(state.appliances.find(a=>a.id===id));return;}
+  if(action==='add-schedule'||action==='edit-schedule'||action==='plan-appliance'){scheduleModal(state.schedules.find(s=>action==='plan-appliance'?s.appliance_id===id:s.id===id),action==='plan-appliance'?id:undefined);return;}
+  if(action==='delete-account'){modal('Delete your account permanently',form('delete-account','<p>This removes your profile and all household records. This cannot be undone.</p>'+field('Current password','current_password','','password','required autocomplete="current-password"')+field('Type DELETE to confirm','confirmation','','text','required pattern="DELETE"'),'Permanently delete account'));return;}
+  if(action.startsWith('delete-')&&!confirm('Delete this saved record? This cannot be undone.'))return;
+  if(actionBusy)return;actionBusy=true;target.disabled=true;
+  try{
+    if(action==='toggle-appliance'){const a=state.appliances.find(a=>a.id===id);await api('/appliances/'+id,'PUT',{on:!a.on});await load();toast('Planning state saved.');}
+    else if(action.startsWith('delete-')){await api('/'+action.slice(7)+'/'+id,'DELETE');$('#modal').close();await load();toast('Record deleted.');}
+    else if(action==='read-alerts'){await api('/alerts/read-all','PUT');await load();toast('Legacy alerts marked read.');}
+    else if(action==='export'){const data=await api('/export');download('energy-saver-data-'+today()+'.json',JSON.stringify(data,null,2));toast('Your data export is ready.');}
+    else if(action==='export-readings'){const cell=value=>'"'+String(value).replace(/^[=+\-@\t\r]/,"'$&").replace(/"/g,'""')+'"';download('meter-readings-'+today()+'.csv','Date,Cumulative kWh,Note\r\n'+state.readings.map(r=>[r.date,r.value,r.note].map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8');}
+    else if(action==='revoke'){await api('/security/revoke','POST');await loadSecurity();toast('Other sessions signed out.');}
+    else if(action==='logout'){await api('/auth/logout','POST');location.replace('/login.html');}
+  }catch(error){toast(error.message);}finally{actionBusy=false;target.disabled=false;}
 });
-document.querySelectorAll('[data-delete-id]').forEach(x=>x.onclick=async()=>{
-  await fetch(`${API_URL}/appliances/${x.dataset.deleteId}`, { method: 'DELETE', headers: {'Authorization': `Bearer ${token}`} });
-  appliances=appliances.filter(a=>a.id!=x.dataset.deleteId);
-  renderAppliances();renderConsumers();updateLive();toast('Appliance removed');
+document.addEventListener('submit',async e=>{
+  const el=e.target;if(!el.matches('[data-form]'))return;e.preventDefault();if(el.dataset.busy)return;
+  const name=el.dataset.form,data=Object.fromEntries(new FormData(el)),number=k=>Number(data[k]),submit=$('button[type=submit]',el);el.dataset.busy='true';submit.disabled=true;$('.form-error',el).textContent='';
+  try{
+    let message='Changes saved.',changed=true;
+    if(name==='appliance'){const id=data.id;delete data.id;data.watts=number('watts');data.hours=number('hours');data.on=el.elements.on.checked;await api('/appliances'+(id?'/'+id:''),id?'PUT':'POST',data);message='Appliance saved.';}
+    else if(name==='reading'){await api('/readings','POST',{...data,value:number('value')});message='Meter reading saved.';}
+    else if(name==='bill-record'){await api('/bills','POST',{...data,units:number('units'),amount:number('amount')});message='Bill saved.';}
+    else if(name==='goal'){await api('/settings','PUT',{...data,monthly_target:number('monthly_target'),budget:number('budget')});message='Saving goal updated.';}
+    else if(name==='settings'){await api('/settings','PUT',{power_limit:number('power_limit'),high_usage:el.elements.high_usage.checked,reminders:el.elements.reminders.checked});message='Preferences saved.';}
+    else if(name==='profile'){await api('/users/profile','PUT',data);message='Profile updated.';}
+    else if(name==='password'){if(data.password!==data.confirm)throw new Error('New passwords do not match.');const result=await api('/security/password','POST',data);csrf=result.csrf;message='Password changed. Other sessions have been signed out.';}
+    else if(name==='recovery'){const result=await api('/security/recovery','POST',data);await load();showRecovery(result.recovery);changed=false;}
+    else if(name==='delete-account'){await api('/users/account','DELETE',data);location.replace('/login.html?deleted=1');return;}
+    else if(name==='schedule'){await api('/schedules','POST',{...data,appliance_id:number('appliance_id'),days:new FormData(el).getAll('days').map(Number),enabled:el.elements.enabled.checked});message='Usage plan saved.';}
+    else if(name==='bill'){$('#billOutput').innerHTML=billResult(number('units'));changed=false;}
+    else if(name==='simulate'){const a=state.appliances.find(a=>a.id===number('appliance_id')),current=Energy.daily(state.appliances)*30,next=current+a.watts*(number('hours')-a.hours)*30/1000,diff=Energy.bill(current).total-Energy.bill(Math.max(0,next)).total;$('#simOutput').innerHTML=`<span class="eyebrow">SIMULATED 30-DAY BILL</span><div class="result-total">${money(Energy.bill(Math.max(0,next)).total)}</div><div class="row"><span>Current appliance estimate</span><strong>${money(Energy.bill(current).total)}</strong></div><div class="row"><span>${diff>=0?'Potential saving':'Additional cost'}</span><strong>${money(Math.abs(diff))}</strong></div><div class="row"><span>Simulated household use</span><strong>${num(next)} kWh</strong></div><p class="details-note">${esc(a.name)}: ${num(number('hours'))} hours/day instead of ${num(a.hours)}. Your saved appliance has not changed.</p>${sourceNote()}`;changed=false;}
+    else if(name==='solar'){const result=Energy.solar(number('capacity'),number('sun'),number('performance'));$('#solarOutput').innerHTML=`<span class="eyebrow">ESTIMATED MONTHLY GENERATION</span><div class="result-total">${num(result)} kWh</div><p>${num(result/30)} kWh per day across an assumed 30-day period.</p>`;changed=false;}
+    else if(name==='ev'){const result=Energy.ev(number('capacity'),number('current'),number('target'),number('efficiency'),number('base'));$('#evOutput').innerHTML=`<span class="eyebrow">ENERGY DRAWN FROM THE GRID</span><div class="result-total">${num(result.energy)} kWh</div><div class="row"><span>Added domestic bill cost</span><strong>${money(result.cost)}</strong></div><p class="details-note">Includes charging losses. Crossing a tariff threshold can change the rate for earlier household units.</p>`;changed=false;}
+    if(changed){$('#modal').close();await load();toast(message);}
+  }catch(error){formError(el,error);}finally{delete el.dataset.busy;submit.disabled=false;}
 });
-const editDialog = document.getElementById('editApplianceDialog');
-document.querySelectorAll('[data-edit-id]').forEach(x=>x.onclick=()=>{
-  const a=appliances.find(y=>y.id==x.dataset.editId);
-  document.getElementById('editAppId').value = a.id;
-  document.getElementById('editName').value = a.name;
-  document.getElementById('editBrand').value = a.brand || '';
-  document.getElementById('editRoom').value = a.room;
-  document.getElementById('editWatts').value = a.watts;
-  document.getElementById('editHours').value = a.hours || 2;
-  editDialog.showModal();
-});
-document.querySelectorAll('[data-schedule-id]').forEach(x=>x.onclick=()=>toast('Schedule saved for off-peak operation'))}
-
-function updateLive(){const watts=appliances.filter(a=>a.on).reduce((s,a)=>s+a.watts,0);document.getElementById('livePowerText').textContent=(watts/1000).toFixed(2)+' kW'}
-document.getElementById('applianceSearch').oninput=renderAppliances;document.getElementById('roomFilter').onchange=renderAppliances;
-const dialog=document.getElementById('applianceDialog');document.getElementById('addApplianceBtn').onclick=()=>dialog.showModal();document.getElementById('saveApplianceBtn').onclick=async e=>{e.preventDefault();const name=document.getElementById('newName').value.trim();if(!name)return;
-  const brand = document.getElementById('newBrand').value.trim();
-  const newApp = {name, brand, room:document.getElementById('addRoom').value,watts:+document.getElementById('addWatts').value,on:false,hours:+document.getElementById('addHours').value||2,icon:'⚡'};
-  const res = await fetch(`${API_URL}/appliances`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify(newApp) });
-  const data = await res.json();
-  newApp.id = data.id;
-  appliances.push(newApp);
-  renderAppliances();renderConsumers();updateEnergyScore();populateSimulator();dialog.close();document.getElementById('applianceForm').reset();toast('Appliance added');
-};
-
-document.getElementById('saveEditApplianceBtn').onclick=async e=>{
-  e.preventDefault();
-  const id = document.getElementById('editAppId').value;
-  const name = document.getElementById('editName').value.trim();
-  const brand = document.getElementById('editBrand').value.trim();
-  if(!name) return;
-  const room = document.getElementById('editRoom').value;
-  const watts = +document.getElementById('editWatts').value;
-  const hours = +document.getElementById('editHours').value || 2;
-  
-  await fetch(`${API_URL}/appliances/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify({name, brand, room, watts, hours}) });
-  const a = appliances.find(y=>y.id==id);
-  a.name = name; a.brand = brand; a.room = room; a.watts = watts; a.hours = hours;
-  renderAppliances();renderConsumers();updateEnergyScore();populateSimulator();editDialog.close();toast('Appliance updated');
-};
-
-function renderAlerts(){document.getElementById('alertList').innerHTML=alerts.map(a=>`<article class="alert-item ${a.unread?'unread':''}"><span class="alert-icon">${a.icon}</span><div><b>${a.title}</b><p>${a.text}</p><small>${a.time}</small></div><button data-read="${a.id}">${a.unread?'Mark read':'Read'}</button></article>`).join('');
-document.querySelectorAll('[data-read]').forEach(b=>b.onclick=async()=>{const a=alerts.find(x=>x.id==b.dataset.read);
-  await fetch(`${API_URL}/alerts/${a.id}/read`, { method: 'PUT', headers: {'Authorization': `Bearer ${token}`} });
-  a.unread=false;renderAlerts();updateBadge();
-});updateBadge()}
-
-function updateBadge(){const n=alerts.filter(a=>a.unread).length;document.getElementById('alertBadge').textContent=n;document.getElementById('alertBadge').style.display=n?'block':'none'}
-document.getElementById('markAllBtn').onclick=async()=>{
-  await fetch(`${API_URL}/alerts/read-all`, { method: 'PUT', headers: {'Authorization': `Bearer ${token}`} });
-  alerts.forEach(a=>a.unread=false);renderAlerts();toast('All alerts marked as read');
-};
-
-const tips=[['❄','Air conditioning','Set the AC to 24–26°C and clean filters regularly. Each degree lower can increase electricity use.','High impact'],['☀','Use natural daylight','Open curtains during daytime and switch off unnecessary lights.','Easy win'],['⏻','Stop standby power','Unplug chargers and use switched power strips for TVs, routers and entertainment devices.','Always useful'],['▣','Efficient refrigeration','Keep the refrigerator away from heat, avoid frequent door opening and check door seals.','Medium impact'],['◉','Smarter laundry','Wash full loads, use cold water when suitable and run during off-peak hours.','High impact'],['♨','Reduce water heating','Use shorter showers and switch off electric heaters immediately after use.','High impact'],['✣','Use fans first','Use ceiling fans before air conditioning when weather permits.','Easy win'],['🔌','Choose efficient appliances','Compare energy labels and total running cost before purchasing a device.','Long-term saving'],['📊','Track daily usage','Review your daily pattern and investigate sudden increases early.','Best habit']];document.getElementById('tipsGrid').innerHTML=tips.map(t=>`<article class="tip-card"><span class="tip-icon">${t[0]}</span><h4>${t[1]}</h4><p>${t[2]}</p><b>${t[3]}</b></article>`).join('');
-function renderCategories(){const cats=[['Cooling',38],['Refrigeration',23],['Entertainment',14],['Lighting & fans',13],['Laundry & other',12]];document.getElementById('categoryBars').innerHTML=cats.map(c=>`<div class="category-row"><div><span>${c[0]}</span><b>${c[1]}%</b></div><div class="progress"><span style="width:${c[1]}%"></span></div></div>`).join('')}
-function drawUsage(){const c=document.getElementById('usageCanvas'),x=c.getContext('2d'),d=[8.8,9.4,7.9,8.2,7.1,9.8,8.6];x.clearRect(0,0,c.width,c.height);const styles=getComputedStyle(document.body),line=styles.getPropertyValue('--line'),green=styles.getPropertyValue('--green2'),muted=styles.getPropertyValue('--muted');x.strokeStyle=line;x.fillStyle=muted;x.font='12px sans-serif';for(let i=0;i<5;i++){let y=40+i*60;x.beginPath();x.moveTo(50,y);x.lineTo(870,y);x.stroke();x.fillText((12-i*2)+'',18,y+4)};x.strokeStyle=green;x.lineWidth=4;x.beginPath();d.forEach((v,i)=>{const px=70+i*130,py=280-(v-6)*45;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();d.forEach((v,i)=>{const px=70+i*130,py=280-(v-6)*45;x.beginPath();x.arc(px,py,6,0,Math.PI*2);x.fillStyle=green;x.fill();x.fillStyle=muted;x.fillText(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],px-12,315)})}
-
-// Prediction Logic
-function updatePrediction() {
-  const currentDayOfMonth = new Date().getDate();
-  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  
-  // Calculate average daily consumption based on appliances
-  const dailyKwh = appliances.reduce((sum, a) => sum + ((a.watts * a.hours) / 1000), 0);
-  
-  // Predict current month-to-date and total
-  const currentKwh = dailyKwh * currentDayOfMonth;
-  const predictedTotalKwh = dailyKwh * daysInMonth;
-  
-  document.getElementById('predCurrent').textContent = currentKwh.toFixed(1) + ' kWh';
-  document.getElementById('predTotal').textContent = predictedTotalKwh.toFixed(1) + ' kWh';
-  
-  const predBill = getCEBBill(predictedTotalKwh);
-  document.getElementById('predBill').textContent = 'Rs. ' + Math.round(predBill).toLocaleString();
-  
-  const targetKwh = 210; // from settings
-  document.getElementById('predTargetKwh').textContent = targetKwh + ' kWh';
-  
-  const alertEl = document.getElementById('predAlert');
-  const alertText = document.getElementById('predAlertText');
-  const statusEl = document.getElementById('predStatus');
-  
-  if (predictedTotalKwh > targetKwh) {
-    alertEl.style.display = 'block';
-    alertText.textContent = `At your current rate, you will exceed your goal of ${targetKwh} kWh by ${(predictedTotalKwh - targetKwh).toFixed(1)} kWh. Try using the Simulator to find ways to cut back.`;
-    statusEl.textContent = 'Will exceed target';
-    statusEl.style.color = 'var(--danger)';
-  } else {
-    alertEl.style.display = 'none';
-    statusEl.textContent = 'On track';
-    statusEl.style.color = 'var(--green)';
-  }
-}
-
-// Bill Analysis Logic
-document.getElementById('analyzeBillBtn').onclick = () => {
-  const prevAmount = +document.getElementById('prevBillAmount').value;
-  const prevKwh = +document.getElementById('prevBillKwh').value;
-  
-  const dailyKwh = appliances.reduce((sum, a) => sum + ((a.watts * a.hours) / 1000), 0);
-  const currentKwh = dailyKwh * 30;
-  const currentAmount = getCEBBill(currentKwh);
-  
-  const costDiff = currentAmount - prevAmount;
-  const kwhDiff = currentKwh - prevKwh;
-  const percentDiff = (costDiff / prevAmount) * 100;
-  
-  document.getElementById('analysisCostDiff').textContent = 'Rs. ' + Math.round(Math.abs(costDiff)).toLocaleString() + (costDiff > 0 ? ' (Increase)' : ' (Decrease)');
-  document.getElementById('analysisUsageDiff').textContent = Math.round(Math.abs(kwhDiff)) + ' kWh ' + (kwhDiff > 0 ? 'more' : 'less');
-  
-  const percentEl = document.getElementById('analysisPercentDiff');
-  percentEl.textContent = Math.round(Math.abs(percentDiff)) + '% ' + (percentDiff > 0 ? 'increase' : 'decrease');
-  percentEl.style.color = percentDiff > 0 ? 'var(--danger)' : 'var(--green)';
-  
-  const insightsEl = document.getElementById('analysisInsights');
-  if (percentDiff > 10) {
-    insightsEl.innerHTML = `<b style="color: var(--danger);">High Increase Alert!</b><p style="margin-top:5px;">Your estimated bill is significantly higher than last month. Check the Wastage Detector for appliances running too long, especially high-wattage ones like AC or Water Heaters.</p>`;
-  } else if (percentDiff < -10) {
-    insightsEl.innerHTML = `<b style="color: var(--green);">Great Savings!</b><p style="margin-top:5px;">You have significantly reduced your consumption compared to last month. Keep up the good work!</p>`;
-  } else {
-    insightsEl.innerHTML = `<b>Stable Usage</b><p style="margin-top:5px;">Your consumption is relatively stable compared to last month.</p>`;
-  }
-};
-// Solar Logic
-document.getElementById('calcSolarBtn').onclick = () => {
-  const cap = +document.getElementById('solarCapacity').value;
-  // Sri Lanka average: roughly 4.2 peak sun hours * 30 days
-  const monthlyGen = cap * 4.2 * 30;
-  document.getElementById('solarGenerationResult').textContent = Math.round(monthlyGen) + ' kWh';
-  toast('Solar generation calculated');
-};
-
-// EV Logic
-document.getElementById('calcEvBtn').onclick = () => {
-  const cap = +document.getElementById('evBattery').value;
-  const curr = +document.getElementById('evCurrent').value;
-  const target = +document.getElementById('evTarget').value;
-  
-  if (target <= curr) {
-    document.getElementById('evRequiredEnergy').textContent = '0 kWh';
-    document.getElementById('evChargingCost').textContent = 'Rs. 0';
-    document.getElementById('evOffPeakCost').textContent = 'Rs. 0';
-    return;
-  }
-  
-  const percentNeeded = (target - curr) / 100;
-  const energyNeeded = cap * percentNeeded;
-  document.getElementById('evRequiredEnergy').textContent = energyNeeded.toFixed(1) + ' kWh';
-  
-  // Normal rate approx Rs. 50/kWh, Off-peak approx Rs. 30/kWh (concept)
-  const normalCost = energyNeeded * 50;
-  const offPeakCost = energyNeeded * 30;
-  
-  document.getElementById('evChargingCost').textContent = 'Rs. ' + Math.round(normalCost).toLocaleString();
-  document.getElementById('evOffPeakCost').textContent = 'Rs. ' + Math.round(offPeakCost).toLocaleString();
-  toast('EV charging cost calculated');
-};
-
-// Schedule Logic
-function updateScheduleRecommendations() {
-  const container = document.getElementById('scheduleRecommendations');
-  const heavy = appliances.filter(a => a.watts >= 1000);
-  
-  if (heavy.length === 0) {
-    container.innerHTML = '<p class="muted">You have no high-power appliances (1000W+) that need scheduling.</p>';
-    return;
-  }
-  
-  container.innerHTML = heavy.map(a => `
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg); border-left: 3px solid var(--orange); border-radius: 4px;">
-      <div>
-        <b>${a.name}</b> (${a.watts}W)
-      </div>
-      <button class="small ghost" data-action="make-plan">Move to Off-Peak</button>
-    </div>
-  `).join('');
-  
-  // Rebind buttons
-  document.querySelectorAll('[data-action="make-plan"]').forEach(b => {
-    b.onclick = () => toast('Appliance scheduled for Off-Peak');
-  });
-}
-
-function getCEBBill(units) {
-  let charge = 0;
-  let fixed = 0;
-  
-  if (units <= 60) {
-    if (units <= 30) { charge = units * 6.00; fixed = 100; }
-    else { charge = (30 * 6.00) + ((units - 30) * 9.00); fixed = 250; }
-  } else {
-    if (units <= 90) { charge = (60 * 15.00) + ((units - 60) * 18.00); fixed = 400; }
-    else if (units <= 120) { charge = (60 * 15.00) + (30 * 18.00) + ((units - 90) * 30.00); fixed = 1000; }
-    else if (units <= 180) { charge = (60 * 15.00) + (30 * 18.00) + (30 * 30.00) + ((units - 120) * 42.00); fixed = 1500; }
-    else { charge = (60 * 15.00) + (30 * 18.00) + (30 * 30.00) + (60 * 42.00) + ((units - 180) * 65.00); fixed = 2000; }
-  }
-  return charge + fixed;
-}
-
-document.getElementById('calculateBillBtn').onclick = () => {
-  const k = +document.getElementById('billKwh').value;
-  const total = getCEBBill(k);
-  const reducedTotal = getCEBBill(k * 0.85); // 15% reduction
-  
-  document.getElementById('billResult').textContent = 'Rs. ' + Math.round(total).toLocaleString();
-  document.getElementById('reducedBill').textContent = 'Rs. ' + Math.round(reducedTotal).toLocaleString();
-  document.getElementById('billSaving').textContent = 'Potential saving: Rs. ' + Math.round(total - reducedTotal).toLocaleString();
-  
-  // Recommendation logic
-  const recEl = document.getElementById('billRecommendation');
-  const recText = document.getElementById('billRecText');
-  recEl.style.display = 'block';
-  if (k > 180) {
-    recText.textContent = "Your expected consumption is very high (>180 units) placing you in the most expensive tariff block (Rs. 65/unit). Try to reduce usage immediately by limiting AC or replacing old appliances.";
-  } else if (k > 90) {
-    recText.textContent = "You are in a higher tariff block. Keeping your usage below 90 units will significantly reduce your fixed and energy charges!";
-  } else if (k > 60) {
-    recText.textContent = "If you reduce your usage to 60 units or below, you'll fall into a much cheaper subsidized block where rates are as low as Rs. 6/unit!";
-  } else {
-    recText.textContent = "Great job! Your consumption is highly efficient. Keep maintaining this to enjoy the cheapest electricity rates.";
-  }
-  
-  toast('Bill estimate updated');
-};
-document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>toast(b.dataset.action==='apply-rec'?'Recommendation applied':b.dataset.action==='make-plan'?'Off-peak plan created':'Schedule saved'));
-document.getElementById('newGoalBtn').onclick=()=>document.getElementById('goalDialog').showModal();document.getElementById('saveGoalBtn').onclick=e=>{e.preventDefault();document.getElementById('goalDialog').close();toast('New saving goal created')};document.getElementById('saveSettingsBtn').onclick=()=>toast('Settings saved');document.getElementById('resetBtn').onclick=()=>{localStorage.clear();location.reload()};
-
-function updateEnergyScore() {
-  const totalKwh = appliances.reduce((sum, a) => sum + ((a.watts * a.hours * 30) / 1000), 0);
-  let score = 100;
-  if (totalKwh > 200) score -= 15;
-  if (totalKwh > 300) score -= 20;
-  
-  appliances.forEach(a => {
-    const dailyKwh = (a.watts * a.hours) / 1000;
-    if (dailyKwh > 5) score -= 5;
-  });
-  
-  score = Math.max(10, Math.min(100, Math.round(score)));
-  document.getElementById('ecoScoreSide').textContent = score;
-  if (document.getElementById('ecoScoreRing')) document.getElementById('ecoScoreRing').textContent = score;
-}
-
-// Wastage Detector Logic
-document.getElementById('scanWastageBtn').onclick = () => {
-  const resultsContainer = document.getElementById('wastageResults');
-  resultsContainer.innerHTML = '';
-  
-  let opportunities = 0;
-  
-  appliances.forEach(a => {
-    const nameLow = a.name.toLowerCase();
-    const isAc = nameLow.includes('ac') || nameLow.includes('air con');
-    const isHeater = nameLow.includes('heat');
-    
-    let isWastage = false;
-    let reason = '';
-    let potentialSaving = 0;
-    
-    if (isAc && a.hours > 6) {
-      isWastage = true;
-      reason = 'AC is running for an unusually long time. Consider using a fan for a few hours instead.';
-      potentialSaving = ((a.hours - 6) * a.watts * 30) / 1000;
-    } else if (isHeater && a.hours > 1.5) {
-      isWastage = true;
-      reason = 'Water heater running for >1.5 hrs daily. Turn it off immediately after use.';
-      potentialSaving = ((a.hours - 1.5) * a.watts * 30) / 1000;
-    } else if (a.hours > 12 && a.watts > 200) {
-      isWastage = true;
-      reason = 'High power appliance running for excessive hours. Could this be a standby issue?';
-      potentialSaving = ((a.hours - 8) * a.watts * 30) / 1000;
-    }
-    
-    if (isWastage) {
-      opportunities++;
-      resultsContainer.innerHTML += `
-        <article class="card" style="border-left: 4px solid var(--danger);">
-          <div style="display: flex; justify-content: space-between; align-items: start;">
-            <div>
-              <b style="color: var(--danger);">HIGH WASTAGE DETECTED</b>
-              <h4 style="margin: 5px 0;">${a.name}</h4>
-              <p class="muted">${reason}</p>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size: 0.8rem; color: var(--text);">Potential Reduction:</span>
-              <br><b>${potentialSaving.toFixed(1)} kWh / month</b>
-            </div>
-          </div>
-        </article>
-      `;
-    }
-  });
-  
-  if (opportunities === 0) {
-    resultsContainer.innerHTML = `<article class="card" style="border-left: 4px solid var(--green);"><b>Looking good!</b><p>No obvious high-wastage patterns were detected among your appliances.</p></article>`;
-  }
-  toast(`Found ${opportunities} wastage opportunities`);
-};
-
-// Simulator Logic
-function populateSimulator() {
-  const select = document.getElementById('simApplianceSelect');
-  select.innerHTML = appliances.map(a => `<option value="${a.id}">${a.name} (${a.watts}W)</option>`).join('');
-  if (appliances.length > 0) {
-    updateSimulatorSlider();
-  }
-}
-
-function updateSimulatorSlider() {
-  const select = document.getElementById('simApplianceSelect');
-  if(!select.value) return;
-  const a = appliances.find(x => x.id == select.value);
-  const slider = document.getElementById('simHoursSlider');
-  slider.value = a.hours || 1;
-  document.getElementById('simHoursValue').textContent = `${slider.value} hours`;
-  runSimulation();
-}
-
-document.getElementById('simApplianceSelect').onchange = updateSimulatorSlider;
-document.getElementById('simHoursSlider').oninput = (e) => {
-  document.getElementById('simHoursValue').textContent = `${e.target.value} hours`;
-  runSimulation();
-};
-
-function runSimulation() {
-  const select = document.getElementById('simApplianceSelect');
-  if(!select.value) return;
-  
-  const simHours = +document.getElementById('simHoursSlider').value;
-  const selectedAppId = select.value;
-  
-  let currentTotalKwh = 0;
-  let simulatedTotalKwh = 0;
-  
-  appliances.forEach(a => {
-    const currentKwh = (a.watts * a.hours * 30) / 1000;
-    currentTotalKwh += currentKwh;
-    
-    if (a.id == selectedAppId) {
-      simulatedTotalKwh += (a.watts * simHours * 30) / 1000;
-    } else {
-      simulatedTotalKwh += currentKwh;
-    }
-  });
-  
-  const currentBill = getCEBBill(currentTotalKwh);
-  const simBill = getCEBBill(simulatedTotalKwh);
-  
-  document.getElementById('simCurrentBill').textContent = 'Rs. ' + Math.round(currentBill).toLocaleString();
-  document.getElementById('simulatedBillResult').textContent = 'Rs. ' + Math.round(simBill).toLocaleString();
-  
-  const diff = currentBill - simBill;
-  const savingsEl = document.getElementById('simSavings');
-  
-  if (diff > 0) {
-    savingsEl.textContent = `Saving: Rs. ${Math.round(diff).toLocaleString()} / month`;
-    savingsEl.style.color = 'var(--green)';
-  } else if (diff < 0) {
-    savingsEl.textContent = `Cost Increase: Rs. ${Math.round(Math.abs(diff)).toLocaleString()} / month`;
-    savingsEl.style.color = 'var(--danger)';
-  } else {
-    savingsEl.textContent = `No difference`;
-    savingsEl.style.color = 'var(--text)';
-  }
-}
-
-async function init() {
-  if (!token) return;
-  
-  try {
-    const [appRes, alertRes] = await Promise.all([
-      fetch(`${API_URL}/appliances`, { headers: {'Authorization': `Bearer ${token}`} }),
-      fetch(`${API_URL}/alerts`, { headers: {'Authorization': `Bearer ${token}`} })
-    ]);
-    
-    if (appRes.status === 401 || alertRes.status === 401) {
-      localStorage.removeItem('ceb_token');
-      window.location.href = 'login.html';
-      return;
-    }
-    
-    appliances = await appRes.json();
-    alerts = await alertRes.json();
-    
-    // Load profile data
-    const profileRes = await fetch(`${API_URL}/users/profile`, { headers: {'Authorization': `Bearer ${token}`} });
-    if (profileRes.ok) {
-      const prof = await profileRes.json();
-      document.getElementById('profName').value = prof.name || '';
-      document.getElementById('profEmail').value = prof.email || '';
-      document.getElementById('profPhone').value = prof.phone || '';
-      document.getElementById('profAvatar').value = prof.avatar || '';
-    }
-    
-    renderChart();renderConsumers();renderAppliances();renderAlerts();renderCategories();updateLive();updateEnergyScore();populateSimulator();updatePrediction();updateScheduleRecommendations();setTimeout(drawUsage,100);window.addEventListener('resize',drawUsage);
-  } catch (err) {
-    console.error(err);
-    toast('Error loading data from server');
-  }
-}
-
-init();
-
-document.getElementById('profileForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const data = {
-    name: document.getElementById('profName').value,
-    email: document.getElementById('profEmail').value,
-    phone: document.getElementById('profPhone').value,
-    avatar: document.getElementById('profAvatar').value,
-    password: document.getElementById('profPassword').value
-  };
-  
-  try {
-    const res = await fetch(`${API_URL}/users/profile`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(data)
-    });
-    
-    if (res.ok) {
-      const result = await res.json();
-      localStorage.setItem('ceb_user', JSON.stringify(result.user));
-      toast('Profile updated successfully');
-      document.getElementById('profPassword').value = '';
-      
-      // Update UI
-      document.getElementById('profileName').textContent = result.user.name;
-      if (result.user.avatar) {
-        const avatarEl = document.querySelector('.profile > span');
-        if (avatarEl) {
-          avatarEl.innerHTML = `<img src="${result.user.avatar}" alt="Avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-          avatarEl.style.padding = '0';
-        }
-      }
-    } else {
-      const err = await res.json();
-      toast('Error: ' + (err.error || 'Update failed'));
-    }
-  } catch (err) {
-    toast('Network error updating profile');
-  }
-};
+window.addEventListener('hashchange',navigate);
+$('#menuBtn').onclick=()=>{const open=$('#sidebar').classList.toggle('open');$('#scrim').hidden=!open;$('#menuBtn').setAttribute('aria-expanded',String(open));};$('#scrim').onclick=closeMenu;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu();});
+$('#themeBtn').onclick=()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;try{localStorage.setItem('ceb_theme',theme);}catch{}};
+$('#dateLabel').textContent=new Date().toLocaleDateString('en-LK',{timeZone:'Asia/Colombo',weekday:'short',day:'numeric',month:'short',year:'numeric'});
+setInterval(()=>{if(state&&!document.hidden&&(page==='alerts'||page==='schedule')&&!$('#modal').open)render();},60000);
+(async()=>{try{const session=await api('/auth/session');csrf=session.csrf;navigate();await load();}catch(error){$('#content').innerHTML=empty('We couldn’t open your household',esc(error.message))+'<p class="text-right"><a class="button" href="/">Try again</a></p>';}})();
