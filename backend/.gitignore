@@ -1,0 +1,9 @@
+# Node modules
+node_modules/
+npm-debug.log
+
+# Database
+database.sqlite
+
+# Environment variables
+.env

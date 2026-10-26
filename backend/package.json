@@ -1,0 +1,27 @@
+{
+  "name": "ceb-energy-saver",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Secure household energy planner for Sri Lanka",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js",
+    "test:browser": "node test/browser.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "sqlite3": "^6.0.1"
+  }
+}
