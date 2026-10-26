@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/.env
+**/.env.*
+**/*.sqlite*
+**/*.db
+**/*.log
+**/artifacts
+.npm-cache
+*.zip
