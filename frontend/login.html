@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#421e2a" />
+    <title>Welcome · CEB Energy Saver</title>
+    <link rel="icon" href="mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="layout.css" />
+    <script src="common.js" defer></script>
+    <script src="auth.js" defer></script>
+  </head>
+  <body>
+    <div id="toast" class="toast" role="status"></div>
+    <main class="auth-page">
+      <section class="auth-story">
+        <a class="brand" href="/login.html"
+          ><span class="brand-mark">ϟ</span
+          ><span>Energy Saver<small>FOR SRI LANKAN HOMES</small></span></a
+        >
+        <div>
+          <span class="eyebrow">YOUR HOME. YOUR ENERGY. YOUR FUTURE.</span>
+          <h1>
+            A little less energy.<br /><em>A little more<br />tomorrow.</em>
+          </h1>
+          <p>
+            Understand your electricity use, build better habits and make room for meaningful
+            savings.
+          </p>
+          <p>
+            Track your meter · Understand your appliances<br />Find your balance · Save with purpose
+          </p>
+        </div>
+        <div class="auth-footer">
+          Independent CEB companion · Not an official utility service<br />Made for everyday
+          households in Sri Lanka.
+        </div>
+      </section>
+      <section class="auth-main">
+        <div class="auth-box">
+          <a class="brand auth-mobile-brand" href="/login.html"
+            ><span class="brand-mark">ϟ</span
+            ><span>Energy Saver<small>FOR SRI LANKAN HOMES</small></span></a
+          >
+          <div id="authContent"></div>
+          <p class="auth-privacy">
+            Your household data stays in this app’s database.<br />No smart-meter connection or
+            utility account access.
+          </p>
+        </div>
+      </section>
+    </main>
+    <dialog id="recoveryDialog" aria-labelledby="recoveryTitle">
+      <h2 id="recoveryTitle">Save your recovery code</h2>
+      <p>
+        This private code can reset your password. Keep it in a password manager or another safe
+        place outside this app. It is shown only once.
+      </p>
+      <code id="recoveryCode" class="recovery-code"></code
+      ><button id="continueBtn" class="button primary">I have saved my code</button>
+    </dialog>
+  </body>
+</html>

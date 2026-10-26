@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#421e2a" />
+    <title>CEB Energy Saver · Your home, in balance</title>
+    <link rel="icon" href="mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="layout.css" />
+    <script src="common.js" defer></script>
+    <script src="energy.js" defer></script>
+    <script src="views.js" defer></script>
+    <script src="bills.js" defer></script>
+    <script src="account.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <div id="toast" role="status" class="toast"></div>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard"
+        ><span class="brand-mark">ϟ</span
+        ><span>Energy Saver<small>FOR SRI LANKAN HOMES</small></span></a
+      >
+      <div class="home-label">
+        <span class="status-dot"></span> My household <span class="tag">LKR</span>
+      </div>
+      <nav id="nav" aria-label="Main navigation"></nav>
+      <div class="sidebar-foot">
+        <span class="tiny">A LITTLE LESS ENERGY.</span><strong>A little more tomorrow.</strong>
+        <p>Independent CEB companion.<br />Not an official utility service.</p>
+      </div>
+    </aside>
+    <div id="scrim" class="scrim" hidden></div>
+    <div class="main">
+      <header class="topbar">
+        <button
+          id="menuBtn"
+          class="icon-button mobile-menu"
+          aria-label="Open navigation"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
+        <div class="breadcrumb">My household <span>/</span> <b id="pageTitle">Overview</b></div>
+        <div class="top-actions">
+          <span id="dateLabel" class="date-label"></span
+          ><button id="themeBtn" class="icon-button" aria-label="Switch colour theme">◐</button
+          ><a class="profile-button" href="#profile" aria-label="Open profile"
+            ><span id="initials">…</span><span id="profileName">My profile</span></a
+          >
+        </div>
+      </header>
+      <main id="content" tabindex="-1">
+        <div class="empty">
+          <h1>Opening your household…</h1>
+          <p>Loading your saved energy data.</p>
+        </div>
+      </main>
+      <footer>
+        Made for everyday energy decisions in Sri Lanka <span>Asia/Colombo · LKR</span>
+      </footer>
+    </div>
+    <dialog id="modal" aria-labelledby="dialogTitle"></dialog>
+  </body>
+</html>
